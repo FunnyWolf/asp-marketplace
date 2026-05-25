@@ -1,0 +1,19 @@
+{
+  "name": "ASP Marketplace",
+  "owner": {
+    "name": "Funnywolf"
+  },
+  "metadata": {
+    "description": "Agentic SOC Platform Claude Code Plugin Marketplace",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "ASP Plugin",
+      "description": "A comprehensive toolkit for operating the ASP platform.",
+      "source": "./plugins",
+      "category": "cybersecurity",
+      "homepage": "https://github.com/FunnyWolf/asp-marketplace"
+    }
+  ]
+}
