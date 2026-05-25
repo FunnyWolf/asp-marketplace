@@ -1,5 +1,5 @@
 {
-  "name": "ASP Marketplace",
+  "name": "asp-marketplace",
   "owner": {
     "name": "Funnywolf"
   },
@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "ASP Plugin",
+      "name": "asp-plugin",
       "description": "A comprehensive toolkit for operating the ASP platform.",
       "source": "./plugins",
       "category": "cybersecurity",
