@@ -32,7 +32,6 @@ metadata:
   中提取；Alert 挂在 Case 下；同类告警通过 `correlation_uid` 聚合到同一个 Case。Enrichment 是独立于三级体系之外的横切附加层，可按需挂载到
   Case / Alert / Artifact 任意一级。
 - 参考实现：`MODULES/Cloud-01-AWS-IAM-Privilege-Escalation-via-AttachUserPolicy.py`，体现当前推荐的 raw_alert 消费、Artifact 提取、Alert/Case 组装、Case 去重追加和分析调度调用方式。
-- 数据模型参考：`PLUGINS/SIRP/sirpcoremodel.py`。
 
 ## 决策流程
 

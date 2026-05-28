@@ -30,7 +30,6 @@ Use this skill to guide the user through the full workflow — from requirement 
 - All modules must inherit `BaseModule` and implement the `run()` method.
 - SIRP data hierarchy: `Case → Alert → Artifact` (three-tier). Artifact is the smallest atomic investigation entity (an IP, a username); Alerts are attached to Cases; related alerts are aggregated into the same Case via `correlation_uid`. Enrichment is a cross-cutting attachment layer independent of the three-tier hierarchy — it can be attached to any level (Case / Alert / Artifact).
 - Reference implementation: `MODULES/Cloud-01-AWS-IAM-Privilege-Escalation-via-AttachUserPolicy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records, deduplicating appended alerts, and requesting case analysis scheduling.
-- Data model reference: `PLUGINS/SIRP/sirpcoremodel.py`.
 
 ## Decision Flow
 
