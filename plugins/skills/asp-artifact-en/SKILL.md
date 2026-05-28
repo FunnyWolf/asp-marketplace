@@ -67,5 +67,6 @@ Then add one short explanation line when needed.
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If no artifacts match, say so directly and suggest the most useful refinement.
 - If the target artifact does not exist, say so directly.

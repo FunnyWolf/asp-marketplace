@@ -133,3 +133,7 @@ Hostname: ...
 - Do not expand investigation scope beyond what the hunting objective requires.
 - If a tool call returns no results, report that honestly — absence of evidence is also a finding.
 - Keep the investigation focused. Resist the urge to investigate every artifact in the case; only pivot to what is relevant to the objective.
+
+## MCP Connection
+
+This agent requires a connection to the ASP MCP server. If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.

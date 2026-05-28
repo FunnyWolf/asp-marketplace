@@ -84,5 +84,6 @@ Preferred response structure:
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If `search_knowledge` returns no results, say so directly and suggest a different keyword set.
 - If the record to update does not exist, say so directly.

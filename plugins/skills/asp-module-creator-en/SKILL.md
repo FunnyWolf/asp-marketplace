@@ -278,6 +278,7 @@ Two modes:
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If the ASP MCP cannot be connected and the user cannot provide a raw_alert sample, state that the workflow cannot continue and direct the user to complete the prerequisites first.
 - If the raw_alert structure is abnormal (missing fields or excessively nested), describe the issue and ask the user to provide more samples or additional clarification.
 - If the rule name provided by the user contains characters that are invalid in a Python filename, prompt the user to verify the name.

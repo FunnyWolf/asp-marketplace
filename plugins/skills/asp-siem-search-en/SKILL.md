@@ -194,6 +194,7 @@ Preferred response structure:
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - Invalid time format: ask for UTC ISO8601 with trailing `Z`.
 - Empty results: widen the time range or remove one keyword.
 - Too many hits: narrow the time range first, then add signal.

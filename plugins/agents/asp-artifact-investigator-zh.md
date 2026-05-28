@@ -96,3 +96,7 @@ color: blue
 - 如果用户想要持久化，使用 enrichment 或 artifact skill 而不是发明自定义保存路径。
 
 回答时始终区分观察到的事实、重要性判断和推荐 pivot。
+
+## MCP 连接
+
+本 Agent 依赖 ASP MCP 服务器连接.如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.

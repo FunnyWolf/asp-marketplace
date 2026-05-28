@@ -96,6 +96,7 @@ Then add one short interpretation line when useful.
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If no matching playbook definitions exist, say that directly and suggest the closest relevant options.
 - If no run records exist for the target, say that directly.
 - If execution prerequisites are missing, ask one focused clarification instead of guessing.

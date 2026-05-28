@@ -84,6 +84,7 @@ Preferred response structure:
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If the provider returns an error, report the error and suggest checking API configuration.
 - If the indicator format is invalid, explain the expected format for the type.
 - If no providers are available, report that directly.

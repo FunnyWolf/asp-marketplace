@@ -127,6 +127,7 @@ fields:
 
 ## Failure Handling
 
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
 - If `siem_discover_index_fields` fails, report the error and ask the user to check the index name and backend connectivity.
 - If the returned field count is 0, prompt the user to verify the index exists and contains data.
 - If the user requests a write without having reviewed the draft, remind them to complete the review step first.
