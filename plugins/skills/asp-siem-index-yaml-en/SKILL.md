@@ -54,12 +54,36 @@ Check whether `DATA/PLUGINS/SIEM/<index_name>.yaml` already exists.
 
 ### Step 3 — Discover Fields
 
-Call `siem_discover_index_fields(index_name=<index_name>, backend=<backend>)`.
+Call `siem_discover_index_fields(index_name=<index_name>, backend=<backend>, max_samples_per_field=20)`.
+
+Optional parameters:
+- `time_range_start` / `time_range_end`: restrict the sampling time range (ISO8601). Useful when the index is very large or you only need to sample a specific period.
+- `doc_limit`: number of documents to scan, default 10000. Lower values return faster but may miss sample values; higher values improve coverage but take longer.
+- `max_samples_per_field`: max sample values returned per field, default 20. Keep the default — the adaptive rules below will trim as needed.
 
 The response contains for each field:
 - `name`: field name (nested fields use dot-path notation)
 - `type`: field type as reported by the backend
-- `sample_values`: top-5 high-frequency values (native types preserved)
+- `sample_values`: sample value list (native types preserved, up to 20)
+
+**Adaptive sample count rules:**
+
+Determine the appropriate number of `sample_values` per field based on its characteristics:
+
+| Field characteristic | Sample count | How to identify |
+|----------------------|-------------|-----------------|
+| Timestamp (date, timestamp, datetime) | 1 | Type is date/timestamp, or values match ISO-8601 / Unix epoch patterns |
+| High-cardinality long text (UUID, hash, URL, path, raw log) | 1-2 | Value length > 32 chars, or field name contains uuid/hash/url/path/uri/raw/line |
+| Boolean / status flag | Up to 2 | Type is boolean, or values are only true/false/0/1 binary |
+| Low-cardinality enum (≤ 10 distinct values) | All | Deduplicated value count ≤ 10, list them all |
+| Mid-cardinality enum (11-30 distinct values) | 10 | Take top-10 by frequency, note "N distinct values" in description |
+| High-cardinality enum (> 30 distinct values) | 5 | Take top-5 by frequency, note "N distinct values, top-5 listed" in description |
+| Other (plain text, numbers) | 5 | Default top-5 |
+
+The backend may return a `sample_values` count that does not match the rules above. Handle as follows:
+- If the backend returns **fewer** than required: keep as-is, do not pad.
+- If the backend returns **more** than required: trim per the rules above, and note the trimming reason in the draft.
+- If the backend returns **exactly** the right amount: take directly.
 
 ### Step 4 — Generate Draft
 
@@ -69,8 +93,8 @@ Populate the full config for each field:
 |-------|--------|
 | `name` | Taken directly |
 | `type` | Taken directly |
-| `sample_values` | Taken directly |
-| `description` | Generated from field name semantics, enriched with sample_values range |
+| `sample_values` | Trimmed per adaptive rules above; if empty list, note "(no sample data, description is inference-only)" in description |
+| `description` | Generated from field name semantics, enriched with sample_values range; for enum types, note the total distinct value count |
 | `is_key_field` | Heuristic based on investigation value: identity, asset, network tuple, action, outcome, high-signal identifier → `true`; noise or low-value fields → `false` |
 
 ### Step 5 — Present Draft

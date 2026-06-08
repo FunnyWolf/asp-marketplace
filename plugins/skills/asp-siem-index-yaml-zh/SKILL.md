@@ -54,12 +54,36 @@ metadata:
 
 ### Step 3 — 发现字段
 
-调用 `siem_discover_index_fields(index_name=<index_name>, backend=<backend>)`。
+调用 `siem_discover_index_fields(index_name=<index_name>, backend=<backend>, max_samples_per_field=20)`。
+
+可选参数：
+- `time_range_start` / `time_range_end`：限定采样的时间范围（ISO8601），适用于索引数据量过大或只需采样特定时段的场景。
+- `doc_limit`：扫描日志条数，默认 10000。调小可加快返回速度，但样例值可能不全；调大可提高样例覆盖率，但耗时更长。
+- `max_samples_per_field`：每个字段返回的最大样例值数量，默认 20。保持默认值即可，后续按自适应规则裁剪。
 
 返回数据包含每个字段的：
 - `name`：字段名（嵌套字段用点号路径）
 - `type`：后端报告的字段类型
-- `sample_values`：Top-5 高频值（保持原始类型）
+- `sample_values`：样例值列表（保持原始类型，最多 20 条）
+
+**样例值数量自适应规则：**
+
+根据字段特征决定 `sample_values` 的合理数量：
+
+| 字段特征 | 样例数量 | 判断依据 |
+|----------|----------|----------|
+| 时间戳类（date, timestamp, datetime） | 1 | 类型为 date/timestamp，或值匹配 ISO-8601 / Unix epoch 模式 |
+| 高基数长文本（UUID, hash, URL, path, raw log） | 1-2 | 值长度 > 32 字符，或字段名含 uuid/hash/url/path/uri/raw/line |
+| 布尔 / 状态开关 | 最多 2 | 类型为 boolean，或值仅为 true/false/0/1 等二元集合 |
+| 低基数枚举（≤ 10 个不同值） | 全量 | 去重后值数量 ≤ 10，全部列出 |
+| 中基数枚举（11-30 个不同值） | 10 | 取 Top-10 高频值，在描述中注明"共 N 种取值" |
+| 高基数枚举（> 30 个不同值） | 5 | 取 Top-5 高频值，在描述中注明"共 N 种取值，仅列出 Top-5" |
+| 其他（普通文本、数值） | 5 | 默认 Top-5 |
+
+后端返回的 `sample_values` 数量可能不符合上述规则。处理逻辑：
+- 若后端返回数量 **少于** 上表要求：保持原样，不补充。
+- 若后端返回数量 **多于** 上表要求：按规则裁剪，并在草案中标注裁剪原因。
+- 若后端返回数量 **恰好** 符合：直接采用。
 
 ### Step 4 — 生成草案
 
@@ -69,8 +93,8 @@ metadata:
 |------|------|
 | `name` | 直接采用 |
 | `type` | 直接采用 |
-| `sample_values` | 直接采用；若为空列表，在描述中标注"(无样本数据，描述仅供参考)" |
-| `description` | 从字段名语义生成，结合 sample_values 补充示例范围；sample_values 为空时仅基于字段名推断 |
+| `sample_values` | 按上方自适应规则裁剪后采用；若为空列表，在描述中标注"(无样本数据，描述仅供参考)" |
+| `description` | 从字段名语义生成，结合 sample_values 补充示例范围；对于枚举类型注明取值数量；sample_values 为空时仅基于字段名推断 |
 | `is_key_field` | 按调查价值启发式推断（见下方规则） |
 
 **`is_key_field` 推断规则：**
