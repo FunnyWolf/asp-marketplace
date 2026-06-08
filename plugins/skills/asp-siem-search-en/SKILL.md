@@ -1,7 +1,7 @@
 ---
 name: asp-siem-search-en
 description: 'Investigate ASP SIEM data with schema exploration, keyword search, and adaptive queries. Use when users want to find the right index, inspect available fields, search logs by IOC, or run structured hunts with exact filters and aggregations.'
-argument-hint: 'explore schema [index] | search <keyword> from <UTC start> to <UTC end> | adaptive query <index_name> <time range> [filters] [aggregations]'
+argument-hint: 'explore schema [index] | search <keyword> from <UTC start> to <UTC end> | adaptive query <index_name> <time range> [filters] [aggregations] | execute spl <spl_query> | execute esql <esql_query>'
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
@@ -30,6 +30,8 @@ Use this skill when the user needs SIEM investigation on ASP. The focus is on ch
 - When the user does not know the correct index or field, use `siem_explore_schema`.
 - `siem_keyword_search` is suitable for keyword-driven search, both broad exploration and fast lookup within a known index.
 - `siem_adaptive_query` is suitable for exact field filtering, controlled aggregation, and stable reproduction. It is closer to a structured SIEM API.
+- `siem_execute_spl` is suitable when the user already has a SPL query and wants to execute it directly.
+- `siem_execute_esql` is suitable when the user already has an ES|QL query and wants to execute it directly.
 - If the user gives a relative time window, call `get_current_time` first and derive a usable UTC range from the returned local time with timezone.
 - Optimize for useful evidence, not for maximum raw output.
 
@@ -79,8 +81,51 @@ What it is good for:
 - It is more like a SIEM API for the model. It does not have to come from `siem_keyword_search`, but it usually needs clearer context.
 - When the user has already given the index, time range, and general conditions, use it directly rather than forcing keyword search first.
 
+### `siem_execute_spl`
+
+Use when:
+
+- The user has already written a SPL query and wants to execute it directly.
+- The user needs full control over query syntax, without going through the keyword search or adaptive query abstraction.
+- The user has learned the field structure from `siem_explore_schema` and wrote their own SPL.
+
+How to use it:
+
+- `query` is required — pass the raw Splunk SPL query string.
+- `limit` defaults to 100; adjust as needed.
+- `time_range_start` / `time_range_end` are optional, used to restrict the time range.
+- `time_field` defaults to `@timestamp`.
+- `index_name` is optional, used only for output labeling. Omit if the SPL already specifies an index.
+
+What it is good for:
+
+- It returns raw SPL query results, suitable for directly analyzing event details, field value distributions, and time patterns.
+- Interpretation should focus on the user's investigation goal, not on listing every field.
+
+### `siem_execute_esql`
+
+Use when:
+
+- The user has already written an ES|QL query and wants to execute it directly.
+- The user needs full control over ELK query syntax, including ES|QL-specific functions and pipe operations.
+
+How to use it:
+
+- `query` is required — pass the raw ELK ES|QL query string.
+- `limit` defaults to 100; adjust as needed.
+- `time_range_start` / `time_range_end` are optional, used to restrict the time range.
+- `time_field` defaults to `@timestamp`.
+- `index_name` is optional, used only for output labeling. Omit if the ES|QL already specifies an index.
+
+What it is good for:
+
+- It returns raw ES|QL query results, suitable for directly analyzing event details, field value distributions, and time patterns.
+- Interpretation should focus on the user's investigation goal, not on listing every field.
+
 ### How To Choose
 
+- If the user provides a raw SPL query, use `siem_execute_spl`.
+- If the user provides a raw ES|QL query, use `siem_execute_esql`.
 - If the clue is mainly a keyword, prefer `siem_keyword_search`.
 - If the clue is mainly a known index plus known field conditions, prefer `siem_adaptive_query`.
 - If the goal is to find events, see the distribution, and gather clues, prefer `siem_keyword_search`.
@@ -92,6 +137,8 @@ What it is good for:
 
 1. If the user asks which index to use, which fields exist, or how the SIEM source is organized, use `siem_explore_schema`.
 2. If the user gives a relative time window, call `get_current_time`, derive a usable UTC range from the returned local time with timezone, and continue.
+3. If the user provides a raw SPL query, use `siem_execute_spl`.
+4. If the user provides a raw ES|QL query, use `siem_execute_esql`.
 
 ## SOP
 
@@ -129,6 +176,24 @@ What it is good for:
 5. Summarize the filtered scope, hit count, and any aggregation output in analyst language.
 6. If the result is not useful, first decide whether the filters are too strict, the field name is wrong, the time range is wrong, or the user should return to `siem_keyword_search` for more context.
 
+### Use `siem_execute_spl`
+
+1. Receive the user's SPL query string.
+2. If the user did not specify `limit`, default to 100; increase if the user needs more results.
+3. If the user provided a time range, pass `time_range_start` / `time_range_end`.
+4. Call `siem_execute_spl`.
+5. Parse the returned JSON and interpret the results based on the user's investigation goal.
+6. If the result is not useful, check: SPL syntax correctness, time range suitability, and whether `limit` is sufficient.
+
+### Use `siem_execute_esql`
+
+1. Receive the user's ES|QL query string.
+2. If the user did not specify `limit`, default to 100; increase if the user needs more results.
+3. If the user provided a time range, pass `time_range_start` / `time_range_end`.
+4. Call `siem_execute_esql`.
+5. Parse the returned JSON and interpret the results based on the user's investigation goal.
+6. If the result is not useful, check: ES|QL syntax correctness, time range suitability, and whether `limit` is sufficient.
+
 ### Refine Search
 
 Preferred refinement actions:
@@ -138,7 +203,8 @@ Preferred refinement actions:
 3. Remove one restrictive keyword if the query returns no results.
 4. Add `index_name` when broad search returns too much irrelevant data.
 5. Switch to `siem_adaptive_query` when the user has learned enough field structure to stop using keyword search.
-6. Keep iterating until the result quality matches the user's goal.
+6. When SPL/ESQL results are not useful, check syntax errors and time range first, then adjust `limit` or query conditions.
+7. Keep iterating until the result quality matches the user's goal.
 
 ## Response Strategy
 
@@ -148,7 +214,7 @@ Preferred response structure:
 
 ### Search Overview
 
-- Search mode: schema exploration, keyword search, or adaptive query
+- Search mode: schema exploration, keyword search, adaptive query, SPL query, or ES|QL query
 - Keyword set or exact filters
 - Time range
 - Searched index or `all`
@@ -162,6 +228,7 @@ Preferred response structure:
 - For schema exploration, only highlight the indices and fields that matter to the hunt.
 - For keyword search, explain that the result is a keyword match set that can be used for follow-up search, distribution review, clue gathering, or source location.
 - For adaptive query, explain that the result is a structured filter or aggregation result that supports validation, statistics, and stable reproduction.
+- For SPL/ESQL query, explain that the result is a raw query output suitable for directly analyzing event details and field patterns.
 
 ### Next Best Step
 
@@ -170,6 +237,7 @@ Preferred response structure:
 - Remove one restrictive keyword
 - Search a specific index
 - Switch to adaptive query with exact filters
+- Refine the SPL/ESQL query statement
 - Save the useful SIEM result as enrichment on the relevant case, alert, or artifact
 - Stop because the evidence is already sufficient
 
@@ -180,6 +248,7 @@ Preferred response structure:
 - Ask for `index_name` only when broad search is likely wasteful, the user already hints at a known source, or adaptive query is the right tool.
 - Ask for exact field names only when the user wants adaptive query and the schema is still unclear.
 - If the user says "look around this event", derive a reasonable first search from the available IOC and time window instead of asking them to design the query.
+- If the user provides an incomplete SPL or ES|QL statement, prompt them to complete it before executing.
 
 ## Output Rules
 
@@ -190,6 +259,7 @@ Preferred response structure:
 - For schema exploration, present a shortlist rather than a raw field inventory.
 - For keyword search, prefer output that helps guide the next search step instead of mechanically listing logs.
 - For adaptive query, prefer output that supports the conclusion through filters and aggregation results.
+- For SPL/ESQL query, focus on returned field structure, anomalies, and time distribution rather than listing every field.
 - If no data is found, say that directly and suggest the most useful adjustment.
 
 ## Failure Handling
@@ -200,3 +270,4 @@ Preferred response structure:
 - Too many hits: narrow the time range first, then add signal.
 - Unknown index or field choice: use `siem_explore_schema` before guessing.
 - Backend or source issue: state which backend or index failed if the result indicates it.
+- SPL/ESQL syntax error: prompt the user to check the query syntax and point out the likely error location.

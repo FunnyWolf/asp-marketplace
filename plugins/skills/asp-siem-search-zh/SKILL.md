@@ -1,7 +1,7 @@
 ---
 name: asp-siem-search-zh
 description: '用于在 ASP SIEM 中进行日志调查、事件检索、字段探索和结构化分析，适合从模糊线索到精确验证的调查任务。'
-argument-hint: 'explore schema [index] | search <keyword> from <UTC start> to <UTC end> | adaptive query <index_name> <time range> [filters] [aggregations]'
+argument-hint: 'explore schema [index] | search <keyword> from <UTC start> to <UTC end> | adaptive query <index_name> <time range> [filters] [aggregations] | execute spl <spl_query> | execute esql <esql_query>'
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
@@ -31,6 +31,8 @@ metadata:
 - 当用户不知道正确索引或字段时，使用 `siem_explore_schema`。
 - `siem_keyword_search` 适合关键词驱动的搜索，既可用于广范围探索，也可用于已知 index 下的快速检索。
 - `siem_adaptive_query` 适合精确字段过滤、受控聚合和稳定复现，能力上更接近一个结构化 SIEM API。
+- `siem_execute_spl` 适合用户已有 SPL 查询语句，直接执行并返回结果。
+- `siem_execute_esql` 适合用户已有 ES|QL 查询语句，直接执行并返回结果。
 - 如果用户给出相对时间窗口，先调用 `get_current_time`，从返回的本地时间加时区推导出可用的 UTC 范围。
 - 优化目标是有用证据，而不是最大原始输出。
 
@@ -81,10 +83,53 @@ metadata:
 - 它更像提供给模型使用的一个 SIEM API，不要求一定来自 `siem_keyword_search` 的下一步，但通常需要更清晰的上下文。
 - 当用户已经给出 index、时间范围和大致条件时，可以直接使用，不必强行先走关键词搜索。
 
-### 两者如何选择
+### `siem_execute_spl`
 
-- 如果线索主要是“关键词”，优先用 `siem_keyword_search`。
-- 如果线索主要是“已知 index + 已知字段条件”，优先用 `siem_adaptive_query`。
+适用场景：
+
+- 用户已经写好了 SPL 查询语句，想直接执行。
+- 用户需要完全控制查询语法，不希望通过关键词搜索或自适应查询的抽象层。
+- 用户从 `siem_explore_schema` 了解了字段结构后，自行编写了 SPL。
+
+使用方法：
+
+- `query` 是必填参数，传入原始 Splunk SPL 查询语句。
+- `limit` 默认返回 100 条，可按需调整。
+- `time_range_start` / `time_range_end` 可选，用于限定时间范围。
+- `time_field` 默认 `@timestamp`。
+- `index_name` 可选，仅用于输出标记，SPL 中已指定 index 时可不填。
+
+适合输出和解读：
+
+- 返回的是原始 SPL 查询结果，适合直接分析事件详情、字段值分布和时间模式。
+- 结果解读应围绕用户的调查目标，而不是罗列所有字段。
+
+### `siem_execute_esql`
+
+适用场景：
+
+- 用户已经写好了 ES|QL 查询语句，想直接执行。
+- 用户需要完全控制 ELK 查询语法，包括 ES|QL 特有的函数和管道操作。
+
+使用方法：
+
+- `query` 是必填参数，传入原始 ELK ES|QL 查询语句。
+- `limit` 默认返回 100 条，可按需调整。
+- `time_range_start` / `time_range_end` 可选，用于限定时间范围。
+- `time_field` 默认 `@timestamp`。
+- `index_name` 可选，仅用于输出标记，ES|QL 中已指定 index 时可不填。
+
+适合输出和解读：
+
+- 返回的是原始 ES|QL 查询结果，适合直接分析事件详情、字段值分布和时间模式。
+- 结果解读应围绕用户的调查目标，而不是罗列所有字段。
+
+### 如何选择
+
+- 如果用户直接给出 SPL 查询语句，用 `siem_execute_spl`。
+- 如果用户直接给出 ES|QL 查询语句，用 `siem_execute_esql`。
+- 如果线索主要是”关键词”，优先用 `siem_keyword_search`。
+- 如果线索主要是”已知 index + 已知字段条件”，优先用 `siem_adaptive_query`。
 - 如果用户目标是找事件、看分布、补线索，优先用 `siem_keyword_search`。
 - 如果用户目标是精确过滤、聚合统计、稳定复现，优先用 `siem_adaptive_query`。
 - 如果用户没有说明字段名且 index 也不确定，不要强推 `siem_adaptive_query`。
@@ -94,6 +139,8 @@ metadata:
 
 1. 如果用户问该用哪个索引、有哪些字段，或 SIEM 源如何组织，使用 `siem_explore_schema`。
 2. 如果用户给出相对时间窗口，调用 `get_current_time`，从返回的本地时间加时区推导出可用 UTC 范围，再继续。
+3. 如果用户直接给出 SPL 查询语句，使用 `siem_execute_spl`。
+4. 如果用户直接给出 ES|QL 查询语句，使用 `siem_execute_esql`。
 
 ## SOP
 
@@ -131,6 +178,24 @@ metadata:
 5. 用分析师语言总结过滤范围、命中情况和任何聚合输出。
 6. 如果结果不理想，优先判断是 `filters` 太严、字段名不对、时间范围不对，还是其实应回到 `siem_keyword_search` 补充上下文。
 
+### 使用 `siem_execute_spl`
+
+1. 接收用户提供的 SPL 查询语句。
+2. 如果用户未指定 `limit`，默认 100；如果用户需要更多结果，可调大。
+3. 如果用户提供了时间范围，传入 `time_range_start` / `time_range_end`。
+4. 调用 `siem_execute_spl`。
+5. 解析返回的 JSON，按用户的调查目标解读结果。
+6. 如果结果不理想，检查：SPL 语法是否正确、时间范围是否合适、`limit` 是否足够。
+
+### 使用 `siem_execute_esql`
+
+1. 接收用户提供的 ES|QL 查询语句。
+2. 如果用户未指定 `limit`，默认 100；如果用户需要更多结果，可调大。
+3. 如果用户提供了时间范围，传入 `time_range_start` / `time_range_end`。
+4. 调用 `siem_execute_esql`。
+5. 解析返回的 JSON，按用户的调查目标解读结果。
+6. 如果结果不理想，检查：ES|QL 语法是否正确、时间范围是否合适、`limit` 是否足够。
+
 ### 优化搜索
 
 首选优化动作：
@@ -142,7 +207,8 @@ metadata:
 5. 当广泛搜索返回太多无关数据时，优先指定 `index_name` 或补充更强信号。
 6. 当结果已经显示日志主要集中在某类 index 时，下一轮搜索就应该收敛到这些 index。
 7. 当用户已经学到足够字段结构和日志落点时，可切换到 `siem_adaptive_query`；但如果用户仍只是想继续搜事件，也可以继续用 `siem_keyword_search`。
-8. 持续迭代直到结果质量匹配用户目标。
+8. SPL/ESQL 查询结果不理想时，优先检查语法错误和时间范围，再调整 `limit` 或查询条件。
+9. 持续迭代直到结果质量匹配用户目标。
 
 
 
@@ -154,7 +220,7 @@ metadata:
 
 ### 搜索概览
 
-- 搜索模式：schema 探索、关键词搜索或自适应查询
+- 搜索模式：schema 探索、关键词搜索、自适应查询、SPL 查询或 ES|QL 查询
 - 关键词集或精确过滤条件
 - 时间范围
 - 搜索的索引或 `all`
@@ -169,6 +235,7 @@ metadata:
 - 对于 schema 探索，只强调对 hunt 重要的索引和字段。
 - 对于关键词搜索，说明这是关键词匹配结果，适合继续搜索、看分布、找线索或定位日志来源。
 - 对于自适应查询，说明这是结构化过滤或聚合结果，适合做验证、统计和稳定复现。
+- 对于 SPL/ESQL 查询，说明这是原始查询结果，适合直接分析事件详情和字段模式。
 
 ### 下一步最佳动作
 
@@ -178,6 +245,7 @@ metadata:
 - 根据分布切换到特定 index
 - 搜索特定索引
 - 用精确过滤切换到自适应查询
+- 调整 SPL/ESQL 查询语句
 - 把有用 SIEM 结果保存为相关 case、alert 或 artifact 上的 enrichment
 - 停止，因为证据已经足够
 
@@ -189,6 +257,7 @@ metadata:
 - 只有当广泛搜索可能浪费、用户已经暗示已知源，或自适应查询是正确工具时，才询问 `index_name`。
 - 只有当用户想要自适应查询且 schema 仍不清楚时，才询问精确字段名。
 - 如果用户说"看看这个事件周围"，从可用 IOC 和时间框架推导出合理的首次搜索，而不是让他们设计查询。
+- 如果用户给出了不完整的 SPL 或 ES|QL 语句，提示补充完整后再执行。
 
 ## 输出规则
 
@@ -199,6 +268,7 @@ metadata:
 - 对于 schema 探索，呈现候选列表而不是原始字段清单。
 - 对于关键词搜索，优先输出能指导下一轮搜索的分布和线索，而不是机械罗列日志。
 - 对于自适应查询，优先输出能支撑结论的过滤命中和聚合结果。
+- 对于 SPL/ESQL 查询，关注返回字段结构、异常值和时间分布，而不是罗列所有字段。
 - 如果没有找到数据，直接说明并建议最可能有用的调整。
 
 ## 失败处理
@@ -209,3 +279,4 @@ metadata:
 - 太多命中：先收窄时间范围，再添加信号，必要时切到更可能的 index。
 - 未知索引或字段选择：在猜测前使用 `siem_explore_schema`。
 - Backend 或源问题：如果结果指示了，说明哪个 backend 或索引失败。
+- SPL/ESQL 语法错误：提示用户检查查询语法，指出可能的错误位置。
