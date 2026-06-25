@@ -32,8 +32,7 @@ metadata:
 
 ## 补充信息
 
-- 可通过调用 `ti_query` 查看可用的提供商列表。
-- 当前已注册：AlienVaultOTX。后续可按需添加更多提供商。
+- Provider 名称由部署环境决定。当前没有 MCP list-provider 工具；如果 provider 名称未知，省略 `provider` 或报告后端错误。
 - 返回的 `aggregated_risk_level` 是所有提供商中最高的风险等级：high > medium > low。
 
 ## 决策流程
@@ -42,13 +41,21 @@ metadata:
 2. 用户指定了提供商名称，传入 `provider` 参数。
 3. 用户要保存结果，使用 `asp-enrichment-zh` 持久化为 enrichment。
 
+## MCP 工具契约
+
+- `ti_query(indicator, artifact_type="Unknown", provider=None)`
+  - `indicator` 是要查询的 IOC 值。
+  - `artifact_type` 在已知时应传 ASP artifact 类型，例如 `IP Address`、`Hostname`、`URL String`、`Hash`、`Email Address` 或 `Unknown`。
+  - `provider` 可选。省略时查询所有已配置 provider；如果提供了未知名称，后端会报错。
+  - 返回 `indicator`、`indicator_type`、各 provider 的 `results`、`aggregated_risk_level` 和 `errors`。
+
 ## SOP
 
 ### 查询威胁情报
 
 1. 从用户请求中提取指标。
 2. 判断用户需要指定提供商还是查询所有提供商。
-3. 调用 `ti_query(indicator=<值>, provider=<名称或 None>)`。
+3. 调用 `ti_query(indicator=<值>, artifact_type=<类型或 "Unknown">, provider=<名称或 None>)`。
 4. 解析响应并展示结果。
 
 首选回复结构：
@@ -84,7 +91,7 @@ metadata:
 
 ## 失败处理
 
-- 如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.
+- 如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。
 - 提供商返回错误时，报告错误并建议检查 API 配置。
 - 指标格式无效时，说明该类型的期望格式。
 - 没有可用的提供商时，直接报告。

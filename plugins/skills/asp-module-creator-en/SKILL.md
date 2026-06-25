@@ -26,10 +26,10 @@ Use this skill to guide the user through the full workflow — from requirement 
 
 - The module filename must exactly match the SIEM rule name (case-sensitive) — Rule name = Redis Stream name = filename. This is a hard constraint; any mismatch will prevent the framework from routing alerts to the module.
 - A raw_alert sample must be obtained before writing any code. Never guess field structure.
-- Before writing code, read `PLUGINS/SIRP/sirpcoremodel.py`; enum values must come only from the actual definitions in that file, never from memory or inference.
+- Before writing code, read the current backend enum models; enum values must come only from actual model definitions, never from memory or inference.
 - All modules must inherit `BaseModule` and implement the `run()` method.
 - SIRP data hierarchy: `Case → Alert → Artifact` (three-tier). Artifact is the smallest atomic investigation entity (an IP, a username); Alerts are attached to Cases; related alerts are aggregated into the same Case via `correlation_uid`. Enrichment is a cross-cutting attachment layer independent of the three-tier hierarchy — it can be attached to any level (Case / Alert / Artifact).
-- Reference implementation: `MODULES/Cloud-01-AWS-IAM-Privilege-Escalation-via-AttachUserPolicy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records, deduplicating appended alerts, and requesting case analysis scheduling.
+- Reference implementation: `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records through `create_alert_with_context`, and requesting case analysis scheduling.
 
 ## Decision Flow
 
@@ -58,8 +58,8 @@ Prompt the user to confirm all three of the following are ready:
 Try the following methods in priority order; proceed as soon as one succeeds:
 
 **Method A (recommended, requires ASP MCP connection):**
-Call `ASP:read_stream_head(stream_name="<rule-name>")` to read the first few alerts from the stream.
-Or call `ASP:read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` to read a specific message.
+Call `read_stream_head(stream_name="<rule-name>", n=3)` to read the first few alerts from the stream.
+Or call `read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` to read a specific message.
 
 **Method B (offline development):**
 Ask the user to copy one or more raw_alert JSON samples to `DATA/MODULES/<rule-name>/raw_alert_*.json`, then read the file.
@@ -113,121 +113,112 @@ If the aggregation key is unclear, propose candidate keys based on raw_alert and
 
 ### Step 5 — Write the Module Code
 
-**Prerequisite action:** read `PLUGINS/SIRP/sirpcoremodel.py` and confirm all enum values that will be used before writing code.
+**Prerequisite action:** read the current backend enum models (`apps.alerts.models`, `apps.artifacts.models`, `apps.cases.models`, `apps.enrichments.models`) and confirm all enum values that will be used before writing code.
 
 Generate `MODULES/<rule-name>.py` using the following structure:
 
 ```python
-import json
-from typing import List
-
-from dateutil import parser
-
-from Lib.basemodule import BaseModule
-from PLUGINS.SIRP.correlation import Correlation
-from PLUGINS.SIRP.sirpapi import Alert, Case
-from PLUGINS.SIRP.sirpcoremodel import (
-    ArtifactType, ArtifactRole, Severity, Impact, Disposition, AlertAction,
-    Confidence, AlertAnalyticType, ProductCategory, AlertPolicyType,
-    AlertRiskLevel, AlertStatus, CasePriority,
-    ArtifactModel, AlertModel, CaseModel, EnrichmentModel
+from apps.agentic.runtime.base import BaseModule, parse_event_time, generate_correlation_uid
+from apps.agentic.services.alerts import create_alert_with_context
+from apps.alerts.models import (
+    AlertAction,
+    AlertAnalyticType,
+    AlertPolicyType,
+    AlertRiskLevel,
+    AlertStatus,
+    Confidence,
+    Disposition,
+    Impact,
+    ProductCategory,
+    Severity,
 )
+from apps.artifacts.models import ArtifactName, ArtifactRole, ArtifactType
+from apps.cases.models import CaseConfidence, CaseImpact, CasePriority
+from apps.enrichments.models import EnrichmentProvider, EnrichmentType
 
 
 class Module(BaseModule):
-    def __init__(self):
-        super().__init__()
+    NAME = "<human-readable rule name>"
+    DESC = "<short detection description>"
+    STREAM_NAME = "<rule-name>"
 
-    def run(self):
+    def run(self, message):
         # 1. Read raw alert
-        raw_alert = self.read_stream_message()
+        raw_alert = message
+        if not isinstance(raw_alert, dict):
+            raise ValueError("Module expects a dict message.")
 
         # 2. Field extraction (customise based on raw_alert structure)
+        event_time, time_unmapped = parse_event_time(raw_alert.get("@timestamp") or raw_alert.get("eventTime"))
         # ...
 
         # 3. Artifact extraction
-        artifacts: List[ArtifactModel] = []
-        # artifacts.append(ArtifactModel(type=..., role=..., value=..., name=...))
+        artifacts = []
+        # artifacts.append({"type": ArtifactType.IP_ADDRESS, "role": ArtifactRole.ACTOR, "value": ..., "name": ArtifactName.SOURCE_IP})
 
         # 4. Compute correlation_uid
         # Choose keys and time window based on alert semantics; do not reuse fixed fields mechanically.
-        correlation_uid = Correlation.generate_correlation_uid(
-            rule_id=self.module_name,
+        correlation_uid = generate_correlation_uid(
+            rule_id=self.STREAM_NAME,
             time_window=...,  # e.g. user-reported phishing mail can use "12h"
             keys=[...],  # stable attack-activity invariants; avoid random request/session IDs
-            timestamp=event_time_formatted
+            timestamp=event_time,
         )
 
-        # 5. Assemble AlertModel
-        alert_model = AlertModel(
-            title=...,
-            severity=...,
-            status=AlertStatus.NEW,
-            disposition=...,
-            action=...,
-            rule_id=self.module_name,
-            rule_name=...,
-            correlation_uid=correlation_uid,
-            raw_data=json.dumps(raw_alert),
-            unmapped=json.dumps({...}),
-            # other fields...
+        # 5. Create or reuse case, create alert, attach artifacts/enrichments, schedule analysis
+        return create_alert_with_context(
+            case_defaults={
+                "title": ...,
+                "severity": ...,
+                "impact": ...,
+                "priority": ...,
+                "confidence": CaseConfidence.HIGH,
+                "description": ...,
+                "correlation_uid": correlation_uid,
+                "tags": [...],
+            },
+            alert_fields={
+                "title": ...,
+                "severity": ...,
+                "status": AlertStatus.NEW,
+                "disposition": ...,
+                "action": ...,
+                "rule_id": self.STREAM_NAME,
+                "rule_name": self.NAME,
+                "correlation_uid": correlation_uid,
+                "first_seen_time": event_time,
+                "last_seen_time": event_time,
+                "raw_data": raw_alert,
+                "unmapped": {**time_unmapped, ...},
+                # other fields...
+            },
+            artifacts=artifacts,
+            enrichments=[],
+            schedule_analysis=True,
+            analysis_trigger=self.STREAM_NAME,
         )
-        alert_model.artifacts = artifacts if artifacts else None
-
-        # 6. Create alert
-        saved_alert_row_id = Alert.create(alert_model)
-        self.logger.info(f"Alert created: {saved_alert_row_id}")
-
-        # 7. Case management
-        existing_case = Case.get_by_correlation_uid(correlation_uid, lazy_load=True)
-        if existing_case:
-            existing_case_row_id = existing_case.row_id
-            assert existing_case_row_id is not None
-            existing_alerts = existing_case.alerts or []
-            updated_alerts = existing_alerts if saved_alert_row_id in existing_alerts else [*existing_alerts, saved_alert_row_id]
-            update_case = CaseModel(
-                alerts=updated_alerts,
-                row_id=existing_case_row_id
-            )
-            Case.update(update_case)
-            Case.mark_analysis_requested(row_id=existing_case_row_id, cooldown_minutes=3)
-        else:
-            new_case = CaseModel(
-                title=...,
-                severity=...,
-                impact=...,
-                priority=...,
-                confidence=Confidence.HIGH,
-                description=...,
-                correlation_uid=correlation_uid,
-                alerts=[saved_alert_row_id]
-            )
-            created_case_row_id = Case.create(new_case)
-            Case.mark_analysis_requested(row_id=created_case_row_id, cooldown_minutes=3)
-
-        return True
 ```
 
 Framework behaviour note:
 - The framework continuously instantiates the Module class and calls `run()`. Each invocation processes exactly one alert — design the module to be stateless; do not accumulate cross-alert state in instance variables.
 
 Field mapping principles:
-- `AlertModel.raw_data`: store the full raw alert as a JSON string.
-- `AlertModel.unmapped`: store fields that could not be mapped to AlertModel/ArtifactModel standard fields.
-- AlertModel field population priority: ① map directly from the raw alert; ② derive via calculation or transformation from raw alert fields; ③ use a sensible default only when both previous steps fail.
+- `alert_fields["raw_data"]`: store the full raw alert as a dict.
+- `alert_fields["unmapped"]`: store fields that could not be mapped to Alert/Artifact standard fields.
+- Alert field population priority: ① map directly from the raw alert; ② derive via calculation or transformation from raw alert fields; ③ use a sensible default only when both previous steps fail.
 - MITRE ATT&CK fields (`tactic`, `technique`, `sub_technique`) should be hardcoded based on the alert type.
-- `Alert.create(alert_model)` automatically cascade-creates artifact records, writes the resulting row_id list back to `AlertModel.artifacts`, and then creates the alert record — attach artifacts to `alert_model`, do not call `Artifact.create` separately.
+- `create_alert_with_context(...)` handles case lookup/create by `correlation_uid`, creates the alert, attaches artifacts and enrichments, and schedules analysis. Do not manually manage case-alert linking.
 - Artifact selection principles: prefer stable, reusable, investigable entities; when deciding whether a field should become an Artifact, focus on whether it helps cross-alert correlation, investigation, evidence collection, or automated response.
 - Avoid single-event random identifiers as Artifacts, such as request_id, event_id, trace_id, session_id, and uuid, unless the rule specifically investigates those IDs.
 - Prefer preserving original, complete, stable entity values instead of only storing over-trimmed or overly generic derived values; derived values often fit better in Alert labels, descriptions, or unmapped data.
 - ArtifactRole should describe the entity's relationship to the event: initiators are usually `ACTOR`, operated objects are usually `TARGET`, affected assets/environments are usually `AFFECTED`, and contextual entities are usually `RELATED` or `OTHER`.
-- If fields in `unmapped` (or other high-value fields) need structured storage, create an `EnrichmentModel` record and attach it to the `enrichments` field of ArtifactModel / AlertModel / CaseModel.
+- If fields in `unmapped` (or other high-value fields) need structured storage, add enrichment dictionaries to the `enrichments` argument for `create_alert_with_context(...)`.
 - Use Enrichment only for supplementary information that is useful for investigation but does not fit core Alert/Case/Artifact fields. Do not convert every unmapped field into an Enrichment; keep it in `unmapped` by default and create Enrichment only when structured display or automation consumption is needed.
-- For threat intelligence or Owner attribution on an entity, prefer storing directly in the corresponding `ArtifactModel` fields (`owner`, `reputation_score`, `reputation_provider`); create an EnrichmentModel and attach it to ArtifactModel only when richer structured content is needed.
+- For threat intelligence or owner attribution on an entity, prefer storing directly in artifact fields when supported; use enrichments only when richer structured content is needed.
 
 ### Step 6 — Create a Test Script
 
-Create an independent test script at `TEST/test_module_<slug>.py` (use a readable slug derived from the rule name, e.g. `test_module_cloud_01.py`). Do **not** add `if __name__ == "__main__":` blocks to the module file itself — keep test code separate so the module stays clean.
+Create an independent test script outside the module file, for example under `backend/tests/` or another project-appropriate scratch path. Do **not** add `if __name__ == "__main__":` blocks to the module file itself — keep test code separate so the module stays clean.
 
 Use the standard test script template:
 
@@ -235,30 +226,24 @@ Use the standard test script template:
 import os, sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ASP.settings")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "asp.settings")
 import django; django.setup()
 
 import importlib.util
 _mod = importlib.util.module_from_spec(
-    importlib.util.spec_from_file_location("m", Path(__file__).resolve().parents[1] / "MODULES" / "<rule-name>.py")
+    importlib.util.spec_from_file_location("m", Path(__file__).resolve().parents[1] / "backend" / "modules" / "<module-file>.py")
 )
 _mod.__spec__.loader.exec_module(_mod)
 Module = _mod.Module
 
 if __name__ == "__main__":
     module = Module()
-    # module.debug_message_id = "<message_id>"
-    # module.run()
-
-    for mid in module.read_stream_head_ids(20):
-        module.debug_message_id = mid
-        module.run()
+    # sample = {...}
+    # module.run(sample)
 ```
 
-Two modes:
-- Comment out the batch loop, uncomment the single-message lines to debug one alert.
-- Default: batch-process the oldest N messages from the stream.
+Use one representative raw_alert sample per test run. Keep batch stream consumption in the framework, not in the module file.
 
 ## Clarification Rules
 
@@ -273,11 +258,11 @@ Two modes:
 - Keep code comments concise and in English, consistent with the `-en` convention.
 - After generating the code, briefly explain the mapping logic for key fields so the user can review.
 - Do not output content unrelated to the module code.
-- AlertModel and CaseModel `description` fields support markdown rendering, but are displayed as inline component in the frontend — avoid `#` `##` `###` heading syntax, `---` horizontal rules, HTML tags, and images, as they break the page layout. Other markdown features (bold, inline code, code blocks, lists, tables, links, blockquotes) are supported and should be used to improve readability.
+- Alert and Case `description` fields support markdown rendering, but are displayed as inline components in the frontend — avoid `#` `##` `###` heading syntax, `---` horizontal rules, HTML tags, and images, as they break the page layout. Other markdown features (bold, inline code, code blocks, lists, tables, links, blockquotes) are supported and should be used to improve readability.
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If the ASP MCP cannot be connected and the user cannot provide a raw_alert sample, state that the workflow cannot continue and direct the user to complete the prerequisites first.
 - If the raw_alert structure is abnormal (missing fields or excessively nested), describe the issue and ask the user to provide more samples or additional clarification.
 - If the rule name provided by the user contains characters that are invalid in a Python filename, prompt the user to verify the name.

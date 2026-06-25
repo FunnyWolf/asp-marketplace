@@ -1,6 +1,6 @@
 ---
 name: asp-case-en
-description: 'Manage ASP security cases, review discussions, update workflow or AI analysis fields, or attach enrichment.'
+description: 'Manage ASP security cases, review related data, update AI analysis fields, or attach enrichment/comments.'
 argument-hint: 'review case <case_id> | list cases [filters] | update case <case_id> <fields>'
 compatibility: connect to asp mcp server
 metadata:
@@ -21,44 +21,58 @@ Case is the core investigation object in ASP. One case can have one or more aler
 
 - The user gives a case ID and wants to review, triage, or quickly summarize it.
 - The user wants to find cases by status, severity, confidence, verdict, correlation UID, title, or tags.
-- The user wants to update case workflow fields or AI analysis fields.
+- The user wants to update case AI analysis fields or summary.
 - The user wants to attach enrichment or structured analysis to a case.
 
 ## Operating Rules
 
 - Summarize case data for decision-making, not as raw schema output.
-- Keep the case as the primary view. Only pull related alerts or discussions when they help answer the case question.
+- Keep the case as the primary view. Only pull related alerts, comments, enrichments, or playbooks when they help answer the case question.
 
 ## Additional Information
 
-- `row_id` is the UUID for each case record and is used for data association.
-- `case_id` is the human-readable unique ID for each case record.
+- `case_id` is the MCP-facing record identifier for each case, for example `case_000001`.
 
 ## Decision Flow
 
-1. If the user provides a specific case ID or says "open", "show", "review", or "summarize" a case, call `list_cases(case_id=<id>, limit=1)`. Discussions are included by default.
-2. If the user wants to browse or compare cases, use `list_cases`. Pass `include_discussions=False` if discussions are not needed.
-3. If the user wants to change status, verdict, severity, or AI fields, use `update_case`.
-5. If the user wants to update a case but did not provide a case ID, ask for the case ID.
-6. If the user gives multiple filters, apply only the ones ASP supports directly and state any unsupported filters explicitly.
-7. If the user wants to attach enrichment or structured analysis to the case, use the `asp-enrichment-en` skill.
+1. If the user provides a specific case ID or says "open", "show", "review", or "summarize" a case, call `list_cases(case_id=<id>, limit=1, include_related=True)`.
+2. If the user wants to browse or compare cases, use `list_cases(..., include_related=False)` unless related alerts, enrichments, comments, and playbooks are needed.
+3. If the user wants to update AI analysis fields or summary, use `update_case`.
+4. If the user wants to add a natural-language note, use the `asp-comment-en` skill.
+5. If the user gives multiple filters, apply only the ones ASP supports directly and state any unsupported filters explicitly.
+6. If the user wants to attach enrichment or structured analysis to the case, use the `asp-enrichment-en` skill.
+
+## MCP Tool Contract
+
+- `list_cases(case_id=None, status=None, severity=None, confidence=None, verdict=None, correlation_uid=None, title=None, tags=None, include_related=True, limit=10)`
+  - `case_id` is a readable ID such as `case_000001`.
+  - `status`: `New`, `In Progress`, `On Hold`, `Resolved`, `Closed`.
+  - `severity`: `Unknown`, `Informational`, `Low`, `Medium`, `High`, `Critical`.
+  - `confidence`: `Unknown`, `Low`, `Medium`, `High`.
+  - `verdict`: `Unknown`, `False Positive`, `True Positive`, `Disregard`, `Suspicious`, `Benign`, `Test`, `Insufficient Data`, `Security Risk`, `Managed Externally`, `Duplicate`, `Other`.
+  - `tags` may be a string, comma-separated string, JSON array string, or list. All tag filters are applied.
+  - `include_related=True` includes related alerts, enrichments, comments, and playbooks. Use `False` for compact lists.
+  - `limit` is clamped to 1-100.
+- `update_case(case_id, severity_ai=None, confidence_ai=None, impact_ai=None, priority_ai=None, verdict_ai=None, summary=None)`
+  - This tool only updates AI-assessed fields and `summary`; it does not update analyst `status`, analyst `severity`, analyst `verdict`, assignee, or workflow timestamps.
+  - AI severity/impact/priority use `Unknown`, `Low`, `Medium`, `High`, `Critical` where applicable. AI confidence uses `Unknown`, `Low`, `Medium`, `High`. AI verdict uses the verdict values above.
 
 ## SOP
 
 ### Review One Case
 
-1. If the user wants to review, analyze, or inspect case details, call `list_cases(case_id=<id>, limit=1, lazy_load=false)` to fetch the full related data, including alerts and enrichments. Discussions are included by default.
-2. If the user only needs the basic case information, call `list_cases(case_id=<id>, limit=1, include_discussions=false)`.
+1. If the user wants to review, analyze, or inspect case details, call `list_cases(case_id=<id>, limit=1, include_related=True)` to fetch the full related data, including alerts, enrichments, comments, and playbooks.
+2. If the user only needs the basic case information, call `list_cases(case_id=<id>, limit=1, include_related=False)`.
 3. If the result is empty, state that the case was not found.
 4. Present only the parts most relevant to the user's request.
 5. Only emphasize missing or suspicious fields when they matter to the user's goal.
 
 Preferred response structure:
 
-- `Case`: case ID, title, severity, status, verdict, confidence, priority, category.
-- `Timeline`: created, acknowledged, closed, and start/end if present.
+- `Case`: case ID, title, severity, status, verdict, confidence, impact, priority, correlation UID, tags.
+- `Timeline`: created time.
 - `Key Alerts`: only the most relevant alerts, not every alert by default.
-- `Discussions`: only the key analyst or system discussion points when relevant.
+- `Comments`: only the key analyst or system comment points when relevant.
 - `Analyst / AI Notes`: comment, summary, and AI fields when relevant.
 
 When the user asks "what happened" or "help me understand this case", start with a short analytical summary before structured details.
@@ -74,13 +88,13 @@ When the user asks "what happened" or "help me understand this case", start with
 
 Preferred response structure:
 
-| Case ID | Title | Severity | Status | Verdict | Confidence | Priority | Updated |
+| Case ID | Title | Severity | Status | Verdict | Confidence | Priority | Created |
 |---------|-------|----------|--------|---------|------------|----------|---------|
 
 Then add one short interpretation line when useful, for example:
 
 - "Most matching cases are still in progress."
-- "High-severity cases are concentrated in one category."
+- "High-severity cases share a tag or correlation UID."
 - "No matching cases were found."
 
 ### Update Case
@@ -93,27 +107,27 @@ Then add one short interpretation line when useful, for example:
 6. Confirm the update in a short changelog style.
 7. If the user likely needs verification, suggest fetching the case again.
 
-Common update targets:
+Supported update targets:
 
-- `severity`
-- `status`
-- `verdict`
 - `severity_ai`
 - `confidence_ai`
+- `impact_ai`
+- `priority_ai`
 - `verdict_ai`
-- `comment`
 - `summary`
+
+Use `asp-comment-en` for natural-language notes. Workflow fields such as `status`, analyst `severity`, and analyst `verdict` are not currently exposed for MCP update.
 
 Preferred response structure:
 
-- `Updated case`: case ID or returned row_id
+- `Updated case`: case ID
 - `Changed fields`: only the fields sent in the request
 
 ## Clarification Rules
 
 - Ask for `case_id` only when it is missing.
 - Ask for enum clarification only when the requested value does not map cleanly to ASP values.
-- If the user asks for "close", "resolve", or "mark suspicious", map it directly to the corresponding status or verdict when the intent is unambiguous.
+- If the user asks to change workflow fields such as "close", "resolve", or analyst verdict, explain that those fields are not exposed by the current MCP update tool. Offer to save an AI recommendation or add a comment instead.
 - If the user asks for a broad review like "show recent important cases", start with `list_cases` instead of forcing them to choose an operation.
 
 ## Output Rules
@@ -127,7 +141,7 @@ Preferred response structure:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If the case does not exist, say so directly.
 - If filters return no results, say so directly and suggest the most useful refinement.
 - If the update target is unclear, ask one focused question instead of guessing.

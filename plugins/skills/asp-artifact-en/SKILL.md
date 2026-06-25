@@ -19,7 +19,7 @@ Artifacts are created automatically by system processes. You can list and analyz
 
 ## When to Use
 
-- The user wants to find artifacts by value, type, role, or owner.
+- The user wants to find artifacts by value, type, role, or artifact ID.
 
 ## Operating Rules
 
@@ -29,28 +29,41 @@ Artifacts are created automatically by system processes. You can list and analyz
 
 ## Additional Information
 
-- `row_id` is the UUID for each artifact record and is used for data association.
-- `artifact_id` is the human-readable unique ID for each artifact record.
+- `artifact_id` is the MCP-facing record identifier for each artifact, for example `artifact_000001`.
 
 ## Decision Flow
 
-1. If the user wants to find or review an artifact, call `list_artifacts`.
-2. If the user wants to attach intelligence, analysis notes, or structured analysis to an artifact, use the `asp-enrichment-en` skill.
-3. If the user is investigating from an artifact, treat the artifact as the smallest pivot object and suggest the next most useful hop only when needed.
+1. If the user wants to find or review one specific artifact, call `list_artifacts(artifact_id=<id>, limit=1, include_related=True)`.
+2. If the user wants to browse or compare artifacts, call `list_artifacts(..., include_related=False)`.
+3. If the user wants to attach intelligence, analysis notes, or structured analysis to an artifact, use the `asp-enrichment-en` skill.
+4. If the user is investigating from an artifact, treat the artifact as the smallest pivot object and suggest the next most useful hop only when needed.
+
+## MCP Tool Contract
+
+- `list_artifacts(artifact_id=None, type=None, role=None, value=None, include_related=False, limit=10)`
+  - `artifact_id` is a readable ID such as `artifact_000001`.
+  - `type` accepts ASP artifact type values such as `IP Address`, `Hostname`, `User Name`, `Email Address`, `URL String`, `Hash`, `File Name`, `Process Name`, `Resource UID`, `Port`, `Subnet`, `Command Line`, `CVE`, `Account`, `Resource`, `File Path`, `Device`, `Registry Path`, `Other`, and related platform values.
+  - `role`: `Unknown`, `Target`, `Actor`, `Affected`, `Related`, `Other`.
+  - `value` is an exact artifact value match.
+  - `type` and `role` may be strings, comma-separated strings, JSON array strings, or lists.
+  - `include_related=False` returns compact artifact records. Set `include_related=True` only when reviewing a specific artifact and you need enrichments.
+  - `limit` is clamped to 1-100.
+  - There is no owner filter in the current MCP tool.
 
 ## SOP
 
 ### List Artifacts
 
 1. Extract the narrowest useful filters from the request.
-2. Call `list_artifacts`.
-3. Parse the returned JSON strings.
-4. Present a compact artifact view. If the user will likely attach or reuse the artifact next, surface the artifact row_id explicitly.
+2. Use `include_related=False` for broad lookup/listing. Use `include_related=True` only for one specific artifact that needs enrichment context.
+3. Call `list_artifacts`.
+4. Parse the returned JSON strings.
+5. Present a compact artifact view. If the user will likely attach or reuse the artifact next, surface the `artifact_id` explicitly.
 
 Preferred response structure:
 
-| Artifact ID | Value | Type | Role | Owner | Summary |
-|-------------|-------|------|------|-------|---------|
+| Artifact ID | Value | Type | Role | Summary |
+|-------------|-------|------|------|---------|
 
 Then add one short explanation line when needed.
 
@@ -67,6 +80,6 @@ Then add one short explanation line when needed.
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If no artifacts match, say so directly and suggest the most useful refinement.
 - If the target artifact does not exist, say so directly.

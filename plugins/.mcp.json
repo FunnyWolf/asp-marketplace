@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "asp": {
-      "type": "sse",
-      "url": "${ASP_MCP_SSE_URL}"
+      "type": "http",
+      "url": "${ASP_MCP_URL}",
+      "headers": {
+        "Authorization": "Api-Key ${ASP_MCP_API_KEY}"
+      }
     }
   }
 }
-

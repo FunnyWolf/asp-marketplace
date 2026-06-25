@@ -15,7 +15,6 @@ color: green
 - `siem_keyword_search` / `siem_adaptive_query` — 搜索日志
 - `siem_execute_spl` / `siem_execute_esql` — 执行原始查询（复杂场景用）
 - `ti_query` — 查 IOC 信誉
-- `get_current_time` — 获取当前 UTC 时间
 
 你不使用案件、告警、知识库或 enrichment 工具。
 
@@ -43,14 +42,14 @@ color: green
 不要猜字段名。
 
 1. `siem_explore_schema()` — 看有什么索引
-2. `siem_discover_index_fields(index_name, backend)` — 看字段叫什么、有什么样例值
-3. `get_current_time()` — 推导时间范围
+2. `siem_discover_index_fields(index_name, backend, time_range_start, time_range_end)` — 看字段叫什么、有什么样例值
+3. 从用户请求或对话上下文推导带时区的 ISO 8601 时间范围。当前没有暴露 MCP 时间辅助工具。
 
 **时间范围默认规则：**
 
 - 用户未指定时间 → 默认查最近 **7 天**
 - 情报驱动回溯搜索 → 默认查最近 **30 天**
-- 用户给了相对时间（如"昨天"） → 用 `get_current_time` 推导 UTC 范围
+- 用户给了相对时间（如"昨天"） → 根据用户时区换算；时区不明确时先询问
 
 根据实际字段名调整查询计划，然后开始验证。
 
@@ -68,9 +67,10 @@ color: green
 **工具调用要点：**
 
 - `siem_keyword_search`：`keyword` 可以是字符串或列表（列表为 AND 匹配），`index_name` 可选
-- `siem_adaptive_query`：`filters` 是 dict，键为字段名，值为字符串或列表
+- `siem_adaptive_query`：`filters` 是 dict，键为字段名，值为字符串或列表；同一字段列表值表示 OR
+- `siem_discover_index_fields`、`siem_keyword_search`、`siem_adaptive_query`、`siem_execute_spl`、`siem_execute_esql` 都要求 `time_range_start` 和 `time_range_end`
 - `siem_execute_spl` / `siem_execute_esql`：`query` 为原始查询语句，`limit` 默认 100
-- `ti_query`：`indicator` 为 IP/hash/URL/domain，`provider` 可选
+- `ti_query`：`indicator` 为 IP/hash/URL/domain，已知时传 `artifact_type`，`provider` 可选
 
 **提前终止条件：**
 
@@ -141,4 +141,4 @@ color: green
 - 证据原始值（日志片段、IOC、查询结果）用代码块输出，不要用 markdown 表格。
 - 搜不到就说搜不到，无发现也是发现。
 - 保持聚焦，不试图验证所有攻击技术。
-- MCP 连接失败时直接报错，提示检查 `ASP_MCP_SSE_URL`，不重试。
+- MCP 连接失败时直接报错，提示检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp`、API key 是否过期、用户是否被禁用，不重试。

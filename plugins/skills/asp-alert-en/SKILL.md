@@ -26,26 +26,37 @@ An alert is secondary data in ASP. Each alert belongs to a case, and each alert 
 ## Operating Rules
 
 - Keep the response focused on triage value rather than repeating schema fields.
-- If the user is working on a specific alert, prefer `list_alerts(alert_id=<id>, limit=1)` because the current MCP surface does not expose a separate `get_alert` tool.
+- If the user is working on a specific alert, prefer `list_alerts(alert_id=<id>, limit=1, include_related=True)` because the current MCP surface does not expose a separate `get_alert` tool.
 - Alerts are currently read-only. If the user wants to save structured analysis back onto the alert, use the `asp-enrichment-en` skill.
+- If the user wants a natural-language note on the alert, use the `asp-comment-en` skill.
 
 ## Additional Information
 
-- `row_id` is the UUID for each alert record and is used for data association.
-- `alert_id` is the human-readable unique ID for each alert record.
+- `alert_id` is the MCP-facing record identifier for each alert, for example `alert_000001`.
 
 ## Decision Flow
 
-1. If the user provides a specific alert ID or says "open", "show", "review", or "summarize" an alert, call `list_alerts(alert_id=<id>, limit=1)`.
-2. If the user wants to browse or compare alerts, use `list_alerts` with supported filters.
+1. If the user provides a specific alert ID or says "open", "show", "review", or "summarize" an alert, call `list_alerts(alert_id=<id>, limit=1, include_related=True)`.
+2. If the user wants to browse or compare alerts, use `list_alerts(..., include_related=False)` with supported filters.
 3. If the user wants to attach analysis results, intelligence, or structured context to the alert, use the `asp-enrichment-en` skill.
+
+## MCP Tool Contract
+
+- `list_alerts(alert_id=None, status=None, severity=None, confidence=None, correlation_uid=None, include_related=False, limit=10)`
+  - `alert_id` is a readable ID such as `alert_000001`.
+  - `status`: `Unknown`, `New`, `In Progress`, `Suppressed`, `Resolved`, `Archived`, `Deleted`, `Other`.
+  - `severity`: `Unknown`, `Informational`, `Low`, `Medium`, `High`, `Critical`.
+  - `confidence`: `Unknown`, `Low`, `Medium`, `High`.
+  - `correlation_uid` matches alerts linked to the same case correlation.
+  - `limit` is clamped to 1-100.
+  - `include_related=False` returns a compact alert record. Set `include_related=True` only when reviewing a specific alert and you need artifacts and enrichments.
 
 ## SOP
 
 ### Review One Alert
 
-1. If the user wants to review, analyze, or inspect alert details, call `list_alerts(alert_id=<id>, limit=1, lazy_load=false)` to fetch the full related data.
-2. If the user only needs the basic alert information, call `list_alerts(alert_id=<id>, limit=1)`.
+1. If the user wants to review, analyze, or inspect alert details, call `list_alerts(alert_id=<id>, limit=1, include_related=True)`.
+2. If the user only needs the basic alert information, call `list_alerts(alert_id=<id>, limit=1, include_related=False)`.
 3. If the result is empty, state that the alert was not found.
 4. Parse the first JSON record.
 5. Present only the most useful triage fields.
@@ -53,8 +64,8 @@ An alert is secondary data in ASP. Each alert belongs to a case, and each alert 
 Preferred response structure:
 
 - `Alert`: alert ID, title or name, severity, status, confidence, correlation UID.
-- `Timeline`: created or updated time when present.
-- `Key Context`: source, rule, category, owner, or other high-signal fields.
+- `Timeline`: created time.
+- `Key Context`: source UID, rule ID, rule name, correlation UID, linked case ID, artifacts, and enrichments when relevant.
 - `Assessment`: short triage judgment.
 
 ### List Alerts
@@ -67,8 +78,8 @@ Preferred response structure:
 
 Preferred response structure:
 
-| Alert ID | Title | Severity | Status | Confidence | First Seen | Rule Name |
-|----------|-------|----------|--------|------------|------------|-----------|
+| Alert ID | Title | Severity | Status | Confidence | Created | Rule Name |
+|----------|-------|----------|--------|------------|---------|-----------|
 
 Then add one short explanation line when needed.
 
@@ -86,6 +97,6 @@ Then add one short explanation line when needed.
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If the alert does not exist, say so directly.
 - If filters return no results, say so directly and suggest the most useful refinement.

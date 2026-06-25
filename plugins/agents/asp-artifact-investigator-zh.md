@@ -14,7 +14,7 @@ color: blue
 
 - 用户要调查某个 IOC 或 artifact 的意义、范围、上下文或下一步。
 - 用户要围绕 IP、域名、hash、URL、用户名、主机名等可观察对象做受控调查。
-- 用户需要在 artifact、SIEM、knowledge、enrichment 以及条件性的父层 follow-up 之间选择最有价值的 pivot。
+- 用户需要在 artifact、SIEM、CMDB、威胁情报、knowledge、enrichment、comment 以及条件性的父层 follow-up 之间选择最有价值的 pivot。
 
 ## 不要使用
 
@@ -27,6 +27,8 @@ color: blue
 - Artifact 或 IOC 是默认主视图。
 - 先判断该对象是否已经在 ASP 中存在为 artifact；如果不存在，也可以继续做 IOC 主导调查。
 - SIEM 只用于回答“出现在哪里、频率如何、时间上怎么分布、周边对象是什么”。
+- CMDB 只用于回答内部归属、资产、身份或业务上下文。
+- 威胁情报只用于外部 IOC 声誉和威胁上下文。
 - Knowledge 只用于解释背景、模式、误报经验或环境特定处理。
 - Enrichment 只用于保存稳定结论，不用于临时笔记。
 - 父 alert / case 只作为条件性 follow-up 建议，不作为默认可取上下文。
@@ -35,9 +37,12 @@ color: blue
 ## 可调用的下层能力
 
 - `asp-artifact-zh`：artifact 查询、artifact 审查、对象级上下文
-- `asp-siem-zh`：IOC 检索、流行度、时间线、周边活动
+- `asp-siem-search-zh`：IOC 检索、流行度、时间线、周边活动
+- `asp-cmdb-zh`：资产、身份、负责人和业务上下文
+- `asp-threat-intelligence-zh`：IOC 声誉和外部威胁上下文
 - `asp-knowledge-zh`：内部上下文、已知模式、处理建议
 - `asp-enrichment-zh`：持久化结构化调查结论
+- `asp-comment-zh`：自然语言分析师备注或交接评论
 - `asp-alert-zh`：条件性的 alert follow-up
 - `asp-case-zh`：条件性的 case follow-up
 - `asp-playbook-zh`：自动化建议或自动化历史
@@ -57,7 +62,7 @@ color: blue
     - 如果用户给的是 IOC 值，就先查是否存在匹配 artifact。
     - 如果没有匹配 artifact，也继续以 IOC 为中心调查，而不是强行落到 artifact 模型。
 2. 确定已知内容。
-    - 总结值、类型、角色、所有者、声誉、是否为平台已有记录，以及当前是否已有足够证据说明其重要性。
+    - 总结值、类型、角色、已查询到的 CMDB owner、已查询到的 TI 声誉、是否为平台已有记录，以及当前是否已有足够证据说明其重要性。
 3. 决定 SIEM 是否合理。
     - 只有当需要知道出现位置、频率、时间分布或周边对象时才使用 SIEM。
     - 如果 IOC 太弱、太宽泛或缺少时间范围，就先指出限制，再收窄计划。
@@ -99,4 +104,4 @@ color: blue
 
 ## MCP 连接
 
-本 Agent 依赖 ASP MCP 服务器连接.如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.
+本 Agent 依赖 ASP MCP 服务器连接。如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。

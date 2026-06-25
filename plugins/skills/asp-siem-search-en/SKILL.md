@@ -32,8 +32,24 @@ Use this skill when the user needs SIEM investigation on ASP. The focus is on ch
 - `siem_adaptive_query` is suitable for exact field filtering, controlled aggregation, and stable reproduction. It is closer to a structured SIEM API.
 - `siem_execute_spl` is suitable when the user already has a SPL query and wants to execute it directly.
 - `siem_execute_esql` is suitable when the user already has an ES|QL query and wants to execute it directly.
-- If the user gives a relative time window, call `get_current_time` first and derive a usable UTC range from the returned local time with timezone.
+- If the user gives a relative time window, convert it to a timezone-aware ISO 8601 range from the conversation context or ask for the missing timezone. No MCP time-helper tool is exposed.
 - Optimize for useful evidence, not for maximum raw output.
+
+## MCP Tool Contract
+
+- `siem_explore_schema(target_index=None)`
+  - Omit `target_index` to list registered SIEM indices. Provide `target_index` to return field metadata for one index.
+- `siem_keyword_search(keyword, time_range_start, time_range_end, time_field="@timestamp", index_name=None)`
+  - `keyword` is a string or string list. A list means AND matching.
+  - `time_range_start` and `time_range_end` are required timezone-aware ISO 8601 values.
+  - `index_name` is optional; omit it for broad discovery across registered backends.
+- `siem_adaptive_query(index_name, time_range_start, time_range_end, time_field="@timestamp", filters=None, aggregation_fields=None)`
+  - `filters` are exact-match field filters. A list value means OR within that field.
+  - Empty `aggregation_fields` lets the backend use registry key fields.
+- `siem_execute_spl(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)`
+  - `query`, `time_range_start`, and `time_range_end` are required. `limit` is 1-10000.
+- `siem_execute_esql(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)`
+  - `query`, `time_range_start`, and `time_range_end` are required. `limit` is 1-10000.
 
 ## Function Notes
 
@@ -93,7 +109,7 @@ How to use it:
 
 - `query` is required — pass the raw Splunk SPL query string.
 - `limit` defaults to 100; adjust as needed.
-- `time_range_start` / `time_range_end` are optional, used to restrict the time range.
+- `time_range_start` / `time_range_end` are required and must be timezone-aware ISO 8601 values.
 - `time_field` defaults to `@timestamp`.
 - `index_name` is optional, used only for output labeling. Omit if the SPL already specifies an index.
 
@@ -113,7 +129,7 @@ How to use it:
 
 - `query` is required — pass the raw ELK ES|QL query string.
 - `limit` defaults to 100; adjust as needed.
-- `time_range_start` / `time_range_end` are optional, used to restrict the time range.
+- `time_range_start` / `time_range_end` are required and must be timezone-aware ISO 8601 values.
 - `time_field` defaults to `@timestamp`.
 - `index_name` is optional, used only for output labeling. Omit if the ES|QL already specifies an index.
 
@@ -136,7 +152,7 @@ What it is good for:
 ## Decision Flow
 
 1. If the user asks which index to use, which fields exist, or how the SIEM source is organized, use `siem_explore_schema`.
-2. If the user gives a relative time window, call `get_current_time`, derive a usable UTC range from the returned local time with timezone, and continue.
+2. If the user gives a relative time window, convert it to a timezone-aware ISO 8601 range from context or ask for the missing timezone before querying.
 3. If the user provides a raw SPL query, use `siem_execute_spl`.
 4. If the user provides a raw ES|QL query, use `siem_execute_esql`.
 
@@ -180,7 +196,7 @@ What it is good for:
 
 1. Receive the user's SPL query string.
 2. If the user did not specify `limit`, default to 100; increase if the user needs more results.
-3. If the user provided a time range, pass `time_range_start` / `time_range_end`.
+3. Require `time_range_start` / `time_range_end` and pass them with the query.
 4. Call `siem_execute_spl`.
 5. Parse the returned JSON and interpret the results based on the user's investigation goal.
 6. If the result is not useful, check: SPL syntax correctness, time range suitability, and whether `limit` is sufficient.
@@ -189,7 +205,7 @@ What it is good for:
 
 1. Receive the user's ES|QL query string.
 2. If the user did not specify `limit`, default to 100; increase if the user needs more results.
-3. If the user provided a time range, pass `time_range_start` / `time_range_end`.
+3. Require `time_range_start` / `time_range_end` and pass them with the query.
 4. Call `siem_execute_esql`.
 5. Parse the returned JSON and interpret the results based on the user's investigation goal.
 6. If the result is not useful, check: ES|QL syntax correctness, time range suitability, and whether `limit` is sufficient.
@@ -264,7 +280,7 @@ Preferred response structure:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - Invalid time format: ask for UTC ISO8601 with trailing `Z`.
 - Empty results: widen the time range or remove one keyword.
 - Too many hits: narrow the time range first, then add signal.

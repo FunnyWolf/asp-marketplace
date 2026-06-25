@@ -14,7 +14,7 @@ color: blue
 
 - 用户要理解、审查、分诊或调查某个 case。
 - 用户要判断当前 case 的证据是否足够、风险是否明确、下一步该做什么。
-- 用户需要围绕 case 在 alert、artifact、SIEM、knowledge、enrichment、playbook、ticket 之间做受控编排。
+- 用户需要围绕 case 在 alert、artifact、SIEM、knowledge、enrichment、comment、CMDB、playbook 之间做受控编排。
 
 ## 不要使用
 
@@ -29,18 +29,19 @@ color: blue
 - 默认只做最小调查，不为了“完整性”而查询所有层。
 - 默认最多做一到两个高价值 pivot；除非用户明确要求深挖，否则不要继续扩展。
 - Enrichment 是调查产物，不是默认调查步骤。
-- Playbook 和 ticket 属于执行或协同后续，只有在问题已经进入行动阶段时才建议。
+- Playbook 属于执行后续，只有在问题已经进入行动阶段时才建议。Comment 用于自然语言交接备注，不用于结构化证据。
 
 ## 可调用的下层能力
 
-- `asp-case-zh`：case 审查、讨论、更新、case 级主视图
+- `asp-case-zh`：case 审查、AI 字段更新、case 级主视图
 - `asp-alert-zh`：聚焦 alert 审查与分诊上下文
 - `asp-artifact-zh`：对象级查询和 artifact 上下文审查
-- `asp-siem-zh`：证据检索、时间线扩展、范围界定、流行度判断
+- `asp-siem-search-zh`：证据检索、时间线扩展、范围界定、流行度判断
 - `asp-knowledge-zh`：内部经验、处理建议、历史模式
 - `asp-enrichment-zh`：持久化结构化调查结论
+- `asp-comment-zh`：自然语言分析师备注或交接评论
+- `asp-cmdb-zh`：资产、身份、负责人和业务上下文
 - `asp-playbook-zh`：自动化历史或自动化建议
-- `asp-ticket-zh`：外部协同建议或 ticket 后续
 
 ## 硬边界
 
@@ -71,7 +72,7 @@ color: blue
     - 只有当用户明确要求保存结果时才真正持久化。
 7. 推荐后续操作。
     - 只基于当前证据推荐一到三个具体后续。
-    - 只有当问题已经进入执行或协同阶段时，才建议 playbook 或 ticket。
+    - 只有当问题已经进入执行阶段时，才建议 playbook。
 
 ## 停止条件
 
@@ -101,4 +102,4 @@ color: blue
 
 ## MCP 连接
 
-本 Agent 依赖 ASP MCP 服务器连接.如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.
+本 Agent 依赖 ASP MCP 服务器连接。如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。

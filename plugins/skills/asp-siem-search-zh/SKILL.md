@@ -33,8 +33,24 @@ metadata:
 - `siem_adaptive_query` 适合精确字段过滤、受控聚合和稳定复现，能力上更接近一个结构化 SIEM API。
 - `siem_execute_spl` 适合用户已有 SPL 查询语句，直接执行并返回结果。
 - `siem_execute_esql` 适合用户已有 ES|QL 查询语句，直接执行并返回结果。
-- 如果用户给出相对时间窗口，先调用 `get_current_time`，从返回的本地时间加时区推导出可用的 UTC 范围。
+- 如果用户给出相对时间窗口，根据对话上下文换算为带时区的 ISO 8601 范围；如果时区不明确就询问。当前没有暴露 MCP 时间辅助工具。
 - 优化目标是有用证据，而不是最大原始输出。
+
+## MCP 工具契约
+
+- `siem_explore_schema(target_index=None)`
+  - 不传 `target_index` 时列出已注册 SIEM index；传入时返回该 index 的字段元数据。
+- `siem_keyword_search(keyword, time_range_start, time_range_end, time_field="@timestamp", index_name=None)`
+  - `keyword` 是字符串或字符串列表；列表表示 AND 匹配。
+  - `time_range_start` 和 `time_range_end` 必填，必须是带时区的 ISO 8601。
+  - `index_name` 可选；不传表示跨已注册 backend 做广泛发现。
+- `siem_adaptive_query(index_name, time_range_start, time_range_end, time_field="@timestamp", filters=None, aggregation_fields=None)`
+  - `filters` 是精确匹配字段过滤；同一字段的列表值表示 OR。
+  - `aggregation_fields` 为空时，后端使用 registry key fields。
+- `siem_execute_spl(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)`
+  - `query`、`time_range_start`、`time_range_end` 必填。`limit` 范围 1-10000。
+- `siem_execute_esql(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)`
+  - `query`、`time_range_start`、`time_range_end` 必填。`limit` 范围 1-10000。
 
 
 ## 函数说明
@@ -95,7 +111,7 @@ metadata:
 
 - `query` 是必填参数，传入原始 Splunk SPL 查询语句。
 - `limit` 默认返回 100 条，可按需调整。
-- `time_range_start` / `time_range_end` 可选，用于限定时间范围。
+- `time_range_start` / `time_range_end` 必填，必须是带时区的 ISO 8601。
 - `time_field` 默认 `@timestamp`。
 - `index_name` 可选，仅用于输出标记，SPL 中已指定 index 时可不填。
 
@@ -115,7 +131,7 @@ metadata:
 
 - `query` 是必填参数，传入原始 ELK ES|QL 查询语句。
 - `limit` 默认返回 100 条，可按需调整。
-- `time_range_start` / `time_range_end` 可选，用于限定时间范围。
+- `time_range_start` / `time_range_end` 必填，必须是带时区的 ISO 8601。
 - `time_field` 默认 `@timestamp`。
 - `index_name` 可选，仅用于输出标记，ES|QL 中已指定 index 时可不填。
 
@@ -138,7 +154,7 @@ metadata:
 ## 决策流程
 
 1. 如果用户问该用哪个索引、有哪些字段，或 SIEM 源如何组织，使用 `siem_explore_schema`。
-2. 如果用户给出相对时间窗口，调用 `get_current_time`，从返回的本地时间加时区推导出可用 UTC 范围，再继续。
+2. 如果用户给出相对时间窗口，根据上下文换算为带时区的 ISO 8601 范围；如果时区缺失，先询问。
 3. 如果用户直接给出 SPL 查询语句，使用 `siem_execute_spl`。
 4. 如果用户直接给出 ES|QL 查询语句，使用 `siem_execute_esql`。
 
@@ -182,7 +198,7 @@ metadata:
 
 1. 接收用户提供的 SPL 查询语句。
 2. 如果用户未指定 `limit`，默认 100；如果用户需要更多结果，可调大。
-3. 如果用户提供了时间范围，传入 `time_range_start` / `time_range_end`。
+3. 要求并传入 `time_range_start` / `time_range_end`。
 4. 调用 `siem_execute_spl`。
 5. 解析返回的 JSON，按用户的调查目标解读结果。
 6. 如果结果不理想，检查：SPL 语法是否正确、时间范围是否合适、`limit` 是否足够。
@@ -191,7 +207,7 @@ metadata:
 
 1. 接收用户提供的 ES|QL 查询语句。
 2. 如果用户未指定 `limit`，默认 100；如果用户需要更多结果，可调大。
-3. 如果用户提供了时间范围，传入 `time_range_start` / `time_range_end`。
+3. 要求并传入 `time_range_start` / `time_range_end`。
 4. 调用 `siem_execute_esql`。
 5. 解析返回的 JSON，按用户的调查目标解读结果。
 6. 如果结果不理想，检查：ES|QL 语法是否正确、时间范围是否合适、`limit` 是否足够。
@@ -273,7 +289,7 @@ metadata:
 
 ## 失败处理
 
-- 如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.
+- 如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。
 - 无效时间格式：要求 UTC ISO8601 带尾部 `Z`。
 - 空结果：先扩展时间范围或移除一个关键词；如果过早指定了 index，也考虑回到全局关键词搜索。
 - 太多命中：先收窄时间范围，再添加信号，必要时切到更可能的 index。

@@ -29,6 +29,7 @@ metadata:
 - 使用 `create_enrichment` 创建 enrichment 记录并自动附加到目标对象。
 - enrichment payload 保持紧凑且可操作。
 - 查看对象本身时优先使用对象对应的 skill；保存结果时再使用本 skill。
+- 如果用户只是要添加自然语言评论，使用 `asp-comment-zh`。
 
 ## 决策流程
 
@@ -37,19 +38,31 @@ metadata:
 
 当你已经有明确的分析结论，例如 verdict、TTP 集合、风险评级或缓解建议，并且这些内容需要保存在目标对象上时，就切换到这个 skill。
 
+## MCP 工具契约
+
+- `create_enrichment(target_id, name="", type="Other", value="", uid="", desc="", data="")`
+  - `target_id` 必须以 `case_`、`alert_` 或 `artifact_` 开头。
+  - `name` 是简短 enrichment 标题。
+  - `type` 应使用 ASP enrichment 类型，例如 `Threat Intelligence`、`Reputation`、`Geo Location`、`DNS`、`Vulnerability`、`Asset`、`CMDB`、`Identity`、`Behavior`、`Detection`、`Correlation`、`History`、`Remediation`、`Observation`、`External Ticket`、`Other`。
+  - `value` 是被富化的主要值，例如 IOC、用户名、主机、case verdict 或 rule name。
+  - `uid` 是可选的外部稳定标识，用于去重。
+  - `desc` 是简短可读摘要。
+  - `data` 必须是 JSON object 或包含 JSON object 的字符串；不要传数组或普通文本。
+  - 后端会把 `provider` 固定为 `MCP`。
+
 ## SOP
 
 ### 创建 Enrichment
 
 1. 要求提供 `target_id`（如 case_000001 / alert_000001 / artifact_000001）。
 2. 把用户的分析整理成紧凑的结构化 enrichment payload。
-3. 调用 `create_enrichment(target_id=<target_id>, name=..., type=..., ...)`。
-4. 确认创建后的 enrichment row_id 及其已附加到目标对象。
+3. 调用 `create_enrichment(target_id=<target_id>, name=..., type=..., value=..., uid=..., desc=..., data=...)`。
+4. 确认创建后的 `enrichment_id` 及其已附加到目标对象。
 
 首选回复结构：
 
 - `Target ID`：目标 ID
-- `Enrichment`：创建出的 enrichment row_id
+- `Enrichment`：创建出的 enrichment ID
 
 ## 澄清规则
 
@@ -65,6 +78,6 @@ metadata:
 
 ## 失败处理
 
-- 如果 MCP 工具调用返回连接错误或超时,直接回复失败,提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置,并确认 ASP MCP 服务器已启动.不要尝试重试或绕过.
+- 如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。
 - 如果目标对象不存在，直接说明。
 - 如果 enrichment payload 不完整，只问一个聚焦问题，不要猜测。

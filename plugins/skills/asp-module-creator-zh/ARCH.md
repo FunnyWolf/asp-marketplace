@@ -16,10 +16,10 @@ SIEM（ELK / Splunk）
 Redis Stream: "<rule-name>"
   │
   ▼
-ASP Module: MODULES/<rule-name>.py
-  │  框架持续循环调用 run()，Consumer Group 模式保证每条告警只处理一次
+ASP Module: backend/modules/<module_file>.py
+  │  module_engine 调用 Module.run(message["data"])，Consumer Group 模式保证每条告警只处理一次
   ▼
-SIRP（Case / Alert / Artifact / Enrichment）
+ASP backend（Case / Alert / Artifact / Enrichment）
 ```
 
 ---
@@ -29,19 +29,26 @@ SIRP（Case / Alert / Artifact / Enrichment）
 ```
 SIEM Rule 名称
     = Redis Stream 名称
-    = MODULES/<文件名>.py（不含 .py）
+    = Module.STREAM_NAME
+
+模块文件路径
+    = backend/modules/<snake_case_module_file>.py
 ```
 
-三者必须完全一致（含大小写），框架依赖此约定自动路由告警到对应模块。任意一处不一致，告警将无法被消费。
+`STREAM_NAME` 必须与 Redis Stream 名称完全一致（含大小写），框架依赖它订阅对应 stream。文件名推荐由 rule 名转换为 snake_case，但不参与路由。
 
 ---
 
 ## Module 内部处理流程
 
 ```
-self.read_stream_message()
+module_engine.read_message()
         │
-        │  raw_alert: dict
+        │  message["data"]: dict
+        ▼
+Module.run(message["data"])
+        │
+        │  raw_alert = message
         ▼
 ┌─────────────────────────────────────────────┐
 │ 1. 字段提取                                  │
@@ -52,7 +59,7 @@ self.read_stream_message()
 ┌─────────────────────────────────────────────┐
 │ 2. Artifact 提取                             │
 │    将实体（IP、用户名、ARN、账号等）           │
-│    封装为 List[ArtifactModel]                │
+│    封装为 artifact dict                      │
 └──────────────────────┬──────────────────────┘
                        │
                        ▼
@@ -64,24 +71,23 @@ self.read_stream_message()
                        │
                        ▼
 ┌─────────────────────────────────────────────┐
-│ 4. AlertModel 组装 + Alert.create()          │
-│    · artifacts 挂载到 alert_model            │
-│    · Alert.create() 自动级联创建 Artifact    │
-│      记录，并回写 row_id 到 AlertModel       │
+│ 4. 组装 case_defaults / alert_fields         │
+│    · 构造 artifacts/enrichments dict         │
+│    · 使用 create_alert_with_context(...)     │
 └──────────────────────┬──────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────┐
-│ 5. Case 查找 / 创建 / 更新                   │
-│    · 按 correlation_uid 查找已有 Case        │
-│    · 有 → 将 alert row_id 追加到 Case.alerts │
-│    · 无 → 创建新 Case                        │
+│ 5. Case 查找 / Alert 创建                    │
+│    · 服务按 correlation_uid 查找 Case        │
+│    · 有 → 将新 Alert 关联到 Case             │
+│    · 无 → 创建 Case 后再创建 Alert           │
 └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## SIRP 数据层级
+## ASP 数据层级
 
 ```
 Case（调查案件，顶层）
@@ -128,8 +134,8 @@ Enrichment（横切附加层，独立于三级体系之外）
 **生成方式：**
 
 ```python
-correlation_uid = Correlation.generate_correlation_uid(
-    rule_id=self.module_name,  # 模块名称，隔离不同规则
+correlation_uid = generate_correlation_uid(
+    rule_id=self.STREAM_NAME,  # Redis Stream / Rule 名称，隔离不同规则
     time_window="24h",  # 时间窗口，超出则开新 Case
     keys=[key1, key2, key3],  # 聚合键列表
     timestamp=event_time  # 事件发生时间
@@ -144,7 +150,7 @@ correlation_uid = Correlation.generate_correlation_uid(
 - 每个有价值的实体单独建一条 Artifact，不要合并
 - `type` 字段使用 `ArtifactType` 枚举（IP_ADDRESS、USER_NAME、RESOURCE_UID 等）
 - `role` 字段区分实体在事件中的角色（ACTOR 攻击方、TARGET 目标方、RELATED 相关方）
-- 威胁情报信息和 Owner 归属优先直接存入 ArtifactModel 字段（`owner`、`reputation_score`、`reputation_provider`）
+- 威胁情报信息和 owner 归属优先在 artifact 字段支持时直接存储；更丰富的结构化内容使用 enrichments
 
 ---
 
@@ -152,10 +158,11 @@ correlation_uid = Correlation.generate_correlation_uid(
 
 | 文件                                                                      | 用途                                             |
 |-------------------------------------------------------------------------|------------------------------------------------|
-| `MODULES/<rule-name>.py`                                                | 告警处理模块，一个 rule 对应一个文件                          |
-| `Lib/basemodule.py`                                                     | BaseModule 基类，提供 `read_stream_message()` 等基础能力 |
-| `PLUGINS/SIRP/sirpcoremodel.py`                                         | 所有数据模型和枚举定义                                    |
-| `PLUGINS/SIRP/sirpapi.py`                                               | Alert / Case 的 CRUD 操作接口                       |
-| `PLUGINS/SIRP/correlation.py`                                           | `Correlation.generate_correlation_uid()`       |
-| `MODULES/Cloud-01-AWS-IAM-Privilege-Escalation-via-AttachUserPolicy.py` | 参考实现                                           |
-| `DATA/<rule-name>/raw_alert_*.json`                                     | 开发调试用的 raw_alert 样本                            |
+| `backend/modules/<module_file>.py`                                      | 告警处理模块，一个 rule 通常对应一个文件                          |
+| `backend/apps/agentic/runtime/base.py`                                  | BaseModule 辅助函数，如 `parse_event_time` 和 `generate_correlation_uid` |
+| `backend/apps/agentic/services/alerts.py`                               | `create_alert_with_context(...)` 服务               |
+| `backend/apps/alerts/models.py`                                         | Alert 枚举和模型                                      |
+| `backend/apps/artifacts/models.py`                                      | Artifact 枚举和模型                                   |
+| `backend/apps/cases/models.py`                                          | Case 枚举和模型                                      |
+| `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`    | 参考实现                                           |
+| `backend/data/modules/<module_slug>/raw_alert_*.json` 或用户提供路径     | 开发调试用的 raw_alert 样本                            |

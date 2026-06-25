@@ -30,6 +30,7 @@ metadata:
 - 规则生成后必须通过 SIEM API 验证，不得输出未经验证的规则。
 - MITRE ATT&CK 映射必须基于实际检测行为，不得随意编造。
 - 优化目标是生成可直接部署使用的检测规则，而不是理论性的查询示例。
+- 规则验证必须提供带时区的 ISO 8601 时间范围，因为 `siem_execute_spl` 和 `siem_execute_esql` 都要求 `time_range_start`、`time_range_end`。
 
 ## 决策流程
 
@@ -37,11 +38,19 @@ metadata:
 2. 调用 `siem_explore_schema()` 获取可用索引，帮助用户选择目标索引。
 3. 调用 `siem_explore_schema(target_index=<index>)` 获取字段详情。
 4. 询问用户想检测什么威胁场景。
-5. 根据检测目标和可用字段，生成 SPL 或 ES|QL 检测规则。
-6. 调用 `siem_execute_spl` 或 `siem_execute_esql` 验证规则。
-7. 根据验证结果调整规则。
-8. 映射 MITRE ATT&CK 战术和技术。
-9. 输出最终规则和使用说明。
+5. 如果缺少验证时间范围，先确认。
+6. 根据检测目标和可用字段，生成 SPL 或 ES|QL 检测规则。
+7. 调用 `siem_execute_spl` 或 `siem_execute_esql` 并传入 `time_range_start`、`time_range_end` 验证规则。
+8. 根据验证结果调整规则。
+9. 映射 MITRE ATT&CK 战术和技术。
+10. 输出最终规则和使用说明。
+
+## MCP 工具契约
+
+- `siem_explore_schema(target_index=None)` 用于列出 index 或获取单个 index 的字段元数据。
+- `siem_execute_spl(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)` 用于验证 Splunk SPL。
+- `siem_execute_esql(query, time_range_start, time_range_end, limit=100, time_field="@timestamp", index_name=None)` 用于验证 ELK ES|QL。
+- 原始查询验证要求 `query`、`time_range_start`、`time_range_end`；时间值必须是带时区的 ISO 8601。
 
 ## SOP
 
@@ -165,7 +174,7 @@ FROM <index_name>
 
 ## 失败处理
 
-- 如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_SSE_URL` 环境变量是否已配置，并确认 ASP MCP 服务器已启动。不要尝试重试或绕过。
+- 如果 MCP 工具调用返回连接错误或超时，直接回复失败，提示用户检查 `ASP_MCP_URL`、`ASP_MCP_API_KEY`、ASGI `/api/mcp` 是否可访问，以及 API key 是否过期、用户是否被禁用。不要尝试重试或绕过。
 - 如果 `siem_explore_schema` 返回空索引列表，说明没有配置索引，提示用户先完成索引配置。
 - 如果规则验证无结果，检查：时间范围是否合适、字段名是否正确、条件是否过严。
 - 如果规则验证结果过多，建议：添加更多过滤条件、提高阈值、缩小时间范围。

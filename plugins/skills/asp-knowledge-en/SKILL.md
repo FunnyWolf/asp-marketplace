@@ -24,9 +24,9 @@ Knowledge records are stored in the database with core fields: `title`, `body`, 
 - `body` — Knowledge content, supports Markdown.
 - `tags` — Labels for filtering and categorization.
 - `source` — Origin: `Manual` for user-created, `Case` for auto-extracted from resolved Cases via the Knowledge Extraction playbook.
-- `expires_at` — Expiration time. Empty means permanently valid. Expired records are excluded from search.
+- `expires_at` — Expiration time. Empty means permanently valid.
 
-`search_knowledge` performs keyword matching against title and body, automatically filtering out expired records.
+`search_knowledge` performs keyword matching against title, body, and tags. The current MCP tool returns matching records as stored; do not claim expired records are automatically excluded.
 
 ## When to Use
 
@@ -42,6 +42,17 @@ Knowledge records are stored in the database with core fields: `title`, `body`, 
 
 1. If the user wants to search knowledge content, use `search_knowledge`.
 2. If the user wants to modify a known record, call `update_knowledge`.
+
+## MCP Tool Contract
+
+- `search_knowledge(keyword, limit=10)`
+  - `keyword` may be a string, comma-separated string, JSON array string, or list. Multiple keywords are ORed across title, body, and tags.
+  - `limit` is clamped to 1-100.
+- `update_knowledge(knowledge_id, title=None, body=None, expires_at=None, tags=None)`
+  - `knowledge_id` is a readable ID such as `knowledge_000001`.
+  - `body` supports Markdown. Preserve headings, lists, tables, code blocks, links, and other Markdown formatting when the user provides structured content.
+  - `expires_at` must be timezone-aware ISO 8601, for example `2026-06-23T12:00:00Z` or `2026-06-23T20:00:00+08:00`.
+  - `tags` may be a string, comma-separated string, JSON array string, or list.
 
 ## SOP
 
@@ -62,14 +73,14 @@ Then add one short line explaining how the results relate to the query.
 ### Update Knowledge
 
 1. Require `knowledge_id`.
-2. Extract only the fields the user explicitly wants to change: `title`, `body`, `expires_at`, `tags`.
+2. Extract only the fields the user explicitly wants to change: `title`, `body`, `expires_at`, `tags`. Treat `body` as Markdown-capable content.
 3. Call `update_knowledge` with only the changed fields.
 4. If the result is `None`, state that the knowledge record was not found.
 5. Confirm only the fields that actually changed.
 
 Preferred response structure:
 
-- `Updated knowledge`: knowledge ID or returned row_id
+- `Updated knowledge`: knowledge ID
 
 ## Clarification Rules
 
@@ -84,6 +95,6 @@ Preferred response structure:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If `search_knowledge` returns no results, say so directly and suggest a different keyword set.
 - If the record to update does not exist, say so directly.

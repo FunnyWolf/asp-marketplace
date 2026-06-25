@@ -53,7 +53,7 @@ self.read_stream_message()
 ┌─────────────────────────────────────────────┐
 │ 2. Artifact Extraction                       │
 │    Wrap entities (IP, username, ARN,         │
-│    account ID, etc.) as List[ArtifactModel]  │
+│    account ID, etc.) as artifact dictionaries│
 └──────────────────────┬──────────────────────┘
                        │
                        ▼
@@ -66,20 +66,17 @@ self.read_stream_message()
                        │
                        ▼
 ┌─────────────────────────────────────────────┐
-│ 4. AlertModel Assembly + Alert.create()      │
-│    · Attach artifacts to alert_model         │
-│    · Alert.create() cascade-creates Artifact │
-│      records and writes row_ids back to      │
-│      AlertModel                              │
+│ 4. Build case_defaults / alert_fields        │
+│    · Build artifacts/enrichments dictionaries│
+│    · Use create_alert_with_context(...)      │
 └──────────────────────┬──────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────┐
-│ 5. Case Lookup / Create / Update             │
-│    · Look up existing Case by correlation_uid│
-│    · Found → append alert row_id to          │
-│              Case.alerts and update          │
-│    · Not found → create new Case             │
+│ 5. Case Lookup / Alert Create                │
+│    · Service looks up Case by correlation_uid│
+│    · Found → attach new Alert to Case        │
+│    · Not found → create Case, then Alert     │
 └─────────────────────────────────────────────┘
 ```
 
@@ -150,9 +147,8 @@ correlation_uid = Correlation.generate_correlation_uid(
 - Use the `ArtifactType` enum for the `type` field (IP_ADDRESS, USER_NAME, RESOURCE_UID, etc.)
 - Use the `role` field to distinguish the entity's role in the event (ACTOR = attacker side, TARGET = victim side,
   RELATED = related party)
-- Prefer storing threat intelligence and Owner attribution directly in the corresponding `ArtifactModel` fields (
-  `owner`, `reputation_score`, `reputation_provider`); create an EnrichmentModel only when richer structured content is
-  needed
+- Prefer storing threat intelligence and owner attribution directly in artifact fields when supported; use enrichments
+  only when richer structured content is needed
 
 ---
 
@@ -160,10 +156,11 @@ correlation_uid = Correlation.generate_correlation_uid(
 
 | File                                                                    | Purpose                                                                             |
 |-------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| `MODULES/<rule-name>.py`                                                | Alert processing module; one file per rule                                          |
-| `Lib/basemodule.py`                                                     | BaseModule base class; provides `read_stream_message()` and other core capabilities |
-| `PLUGINS/SIRP/sirpcoremodel.py`                                         | All data model and enum definitions                                                 |
-| `PLUGINS/SIRP/sirpapi.py`                                               | Alert / Case CRUD operation interfaces                                              |
-| `PLUGINS/SIRP/correlation.py`                                           | `Correlation.generate_correlation_uid()`                                            |
-| `MODULES/Cloud-01-AWS-IAM-Privilege-Escalation-via-AttachUserPolicy.py` | Reference implementation                                                            |
-| `DATA/<rule-name>/raw_alert_*.json`                                     | raw_alert samples for development and debugging                                     |
+| `backend/modules/<rule-name>.py`                                        | Alert processing module; one file per rule                                          |
+| `backend/apps/agentic/runtime/base.py`                                  | BaseModule helpers such as `parse_event_time` and `generate_correlation_uid`        |
+| `backend/apps/agentic/services/alerts.py`                               | `create_alert_with_context(...)` service                                            |
+| `backend/apps/alerts/models.py`                                         | Alert enums and model                                                               |
+| `backend/apps/artifacts/models.py`                                      | Artifact enums and model                                                            |
+| `backend/apps/cases/models.py`                                          | Case enums and model                                                                |
+| `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`    | Reference implementation                                                            |
+| `backend/DATA/MODULES/<rule-name>/raw_alert_*.json`                     | raw_alert samples for development and debugging                                     |

@@ -29,11 +29,24 @@ Use this skill when analysis results need to be saved back into ASP as structure
 - Use `create_enrichment` to create the enrichment record and attach it to the target in one step.
 - Keep the payload compact and actionable.
 - Use the object-specific skill first when the user is still inspecting the object, and use this skill when saving the result.
+- Use `asp-comment-en` instead when the user only wants to add a natural-language note.
 
 ## Decision Flow
 
 1. If the user wants to save a new structured result on a target object, call `create_enrichment(target_id=..., ...)`.
 2. If the user is still exploring the object rather than saving a result, use the corresponding object skill first.
+
+## MCP Tool Contract
+
+- `create_enrichment(target_id, name="", type="Other", value="", uid="", desc="", data="")`
+  - `target_id` must start with `case_`, `alert_`, or `artifact_`.
+  - `name` is a short enrichment title.
+  - `type` should be an ASP enrichment type such as `Threat Intelligence`, `Reputation`, `Geo Location`, `DNS`, `Vulnerability`, `Asset`, `CMDB`, `Identity`, `Behavior`, `Detection`, `Correlation`, `History`, `Remediation`, `Observation`, `External Ticket`, or `Other`.
+  - `value` is the primary value being enriched, such as an IOC, username, host, case verdict, or rule name.
+  - `uid` is an optional stable external identifier for deduplication.
+  - `desc` is a concise human-readable summary.
+  - `data` must be a JSON object or a string containing a JSON object. Do not pass arrays or plain text as `data`.
+  - The backend sets `provider` to `MCP`.
 
 ## SOP
 
@@ -41,13 +54,13 @@ Use this skill when analysis results need to be saved back into ASP as structure
 
 1. Require `target_id` such as `case_000001`, `alert_000001`, or `artifact_000001`.
 2. Convert the user's analysis into a compact structured enrichment payload.
-3. Call `create_enrichment(target_id=<target_id>, name=..., type=..., ...)`.
-4. Confirm the created enrichment row_id and that it is attached to the target.
+3. Call `create_enrichment(target_id=<target_id>, name=..., type=..., value=..., uid=..., desc=..., data=...)`.
+4. Confirm the created `enrichment_id` and that it is attached to the target.
 
 Preferred response structure:
 
 - `Target ID`: target ID
-- `Enrichment`: created enrichment row_id
+- `Enrichment`: created enrichment ID
 
 ## Clarification Rules
 
@@ -63,6 +76,6 @@ Preferred response structure:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If the target object does not exist, say so directly.
 - If the enrichment payload is incomplete, ask one focused follow-up instead of guessing.

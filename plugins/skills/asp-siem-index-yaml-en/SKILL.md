@@ -32,7 +32,7 @@ Use this skill when the user wants to create or update a SIEM index configuratio
 
 ## Decision Flow
 
-1. If `index_name` or `backend` is missing, ask the user first.
+1. If `index_name`, `backend`, or the sampling time range is missing, ask the user first.
 2. If `DATA//Plugin/SIEM/<index_name>.yaml` already exists, read it as a baseline for comparison.
 3. Call `siem_discover_index_fields` to get live fields.
 4. Generate a draft and present it for user review.
@@ -45,6 +45,7 @@ Use this skill when the user wants to create or update a SIEM index configuratio
 Ask the user for:
 - `index_name`: the SIEM index name.
 - `backend`: `ELK` or `Splunk`.
+- `time_range_start` and `time_range_end`: UTC or timezone-aware ISO 8601 sampling range.
 
 ### Step 2 — Check Existing Config
 
@@ -54,10 +55,16 @@ Check whether `DATA/PLUGINS/SIEM/<index_name>.yaml` already exists.
 
 ### Step 3 — Discover Fields
 
-Call `siem_discover_index_fields(index_name=<index_name>, backend=<backend>, max_samples_per_field=20)`.
+Call `siem_discover_index_fields(index_name=<index_name>, backend=<backend>, time_range_start=<start>, time_range_end=<end>, max_samples_per_field=20)`.
+
+MCP tool contract:
+- `siem_discover_index_fields(index_name, backend, time_range_start, time_range_end, doc_limit=10000, max_samples_per_field=20)`
+  - `backend` must be `ELK` or `Splunk`.
+  - `time_range_start` and `time_range_end` are required and must be timezone-aware ISO 8601, for example `2026-06-23T12:00:00Z`.
+  - `doc_limit` is clamped by the backend to 1-100000.
+  - `max_samples_per_field` is clamped by the backend to 1-100.
 
 Optional parameters:
-- `time_range_start` / `time_range_end`: restrict the sampling time range (ISO8601). Useful when the index is very large or you only need to sample a specific period.
 - `doc_limit`: number of documents to scan, default 10000. Lower values return faster but may miss sample values; higher values improve coverage but take longer.
 - `max_samples_per_field`: max sample values returned per field, default 20. Keep the default — the adaptive rules below will trim as needed.
 
@@ -139,7 +146,7 @@ fields:
 
 ## Clarification Rules
 
-- Only ask for `index_name` or `backend` when missing.
+- Only ask for `index_name`, `backend`, or sampling time range when missing.
 - If `siem_discover_index_fields` returns an empty field list, the index name may be wrong or the backend has no data — ask the user to verify.
 - If the user disagrees with `is_key_field` or `description` for certain fields, adjust per their request and re-present.
 
@@ -151,7 +158,7 @@ fields:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If `siem_discover_index_fields` fails, report the error and ask the user to check the index name and backend connectivity.
 - If the returned field count is 0, prompt the user to verify the index exists and contains data.
 - If the user requests a write without having reviewed the draft, remind them to complete the review step first.

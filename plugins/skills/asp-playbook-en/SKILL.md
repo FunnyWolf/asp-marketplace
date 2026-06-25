@@ -26,25 +26,41 @@ Use this skill when the user needs to work with playbook automation on ASP.
 ## Operating Rules
 
 - Keep playbook definitions and playbook run records strictly separate in language and workflow.
-- Use `list_playbook_definitions` only for runnable definitions.
-- Use `list_playbook_runs` only for run records.
+- Use `list_playbook_templates` only for runnable definitions.
+- Use `list_playbooks` only for run records.
 - Use `execute_playbook` only when the user has named a runnable definition and identified the target object.
 - Do not invent a playbook definition name. If it is missing, list or suggest available definitions first.
 - Treat `user_input` as optional natural-language guidance for that specific run, not as a generic chat prompt.
 
 ## Decision Flow
 
-1. If the user wants to know what can run, call `list_playbook_definitions`.
-2. If the user wants to confirm whether automation has run for a case, call `list_playbook_runs(case_id=<case_id>)`.
+1. If the user wants to know what can run, call `list_playbook_templates`.
+2. If the user wants to confirm whether automation has run for a case, call `list_playbooks(case_id=<case_id>, include_related=False)`.
 3. If the user wants to run automation and already provides the definition name plus target case, call `execute_playbook`.
-4. If the user wants to run automation but does not know the definition name, call `list_playbook_definitions` first.
-5. If the user wants the overall automation history, call `list_playbook_runs` with the narrowest useful filters.
+4. If the user wants to run automation but does not know the definition name, call `list_playbook_templates` first.
+5. If the user wants the overall automation history, call `list_playbooks` with the narrowest useful filters.
+
+## MCP Tool Contract
+
+- `list_playbook_templates()`
+  - Returns runnable playbook definitions from the backend playbook definition registry.
+- `execute_playbook(name, case_id, user_input=None)`
+  - `name` must match a runnable playbook template name.
+  - `case_id` is a readable ID such as `case_000001`.
+  - `user_input` is optional run-specific guidance.
+  - Creates a pending playbook run record.
+- `list_playbooks(playbook_id=None, job_status=None, case_id=None, include_related=False, limit=10)`
+  - `playbook_id` is a readable run ID such as `playbook_000001`.
+  - `job_status`: `Success`, `Failed`, `Pending`, `Running`.
+  - `case_id` filters runs linked to the case.
+  - `include_related=False` returns compact run records. Set `include_related=True` only when reviewing a specific run and you need compact linked case details.
+  - `limit` is clamped to 1-100.
 
 ## SOP
 
 ### List Runnable Playbook Definitions
 
-1. Call `list_playbook_definitions`.
+1. Call `list_playbook_templates`.
 2. Parse the returned JSON.
 3. Show only the definitions that are most relevant to the user's target object or goal.
 4. Make it explicit that these are definitions, not run records.
@@ -52,7 +68,7 @@ Use this skill when the user needs to work with playbook automation on ASP.
 ### Run a Playbook
 
 1. Require the target case ID and the playbook definition `name`.
-2. If the definition name is missing or uncertain, call `list_playbook_definitions` first.
+2. If the definition name is missing or uncertain, call `list_playbook_templates` first.
 3. Pass `user_input` only when the user wants extra guidance for that run.
 4. Call `execute_playbook(case_id=<case_id>, name=<definition_name>, user_input=<optional>)`.
 5. Confirm that a pending playbook run record was created.
@@ -69,13 +85,14 @@ Preferred response structure:
 
 1. Extract supported filters: `playbook_id`, `job_status`, `case_id`, and `limit`.
 2. Use `case_id` when the user is asking from the perspective of one case.
-3. Call `list_playbook_runs`.
-4. Parse the returned JSON strings.
-5. Present a short run-oriented view.
+3. Use `include_related=False` for history/list views. Use `include_related=True` only for one specific run that needs linked case context.
+4. Call `list_playbooks`.
+5. Parse the returned JSON strings.
+6. Present a short run-oriented view.
 
 Preferred response structure:
 
-| Run ID | Case ID | Job Status | Definition Name | Updated |
+| Run ID | Case ID | Job Status | Definition Name | Created |
 |--------|---------|------------|-----------------|---------|
 
 Then add one short interpretation line when useful.
@@ -85,7 +102,7 @@ Then add one short interpretation line when useful.
 - Ask for the target case ID only when it is missing for run requests.
 - Ask for the playbook definition name only when it is missing or ambiguous.
 - If the user names something that sounds like a run ID instead of a definition, clarify before executing.
-- If the user asks to "check the run" without a run ID, prefer `list_playbook_runs` with object context instead of guessing a specific run.
+- If the user asks to "check the run" without a run ID, prefer `list_playbooks` with object context instead of guessing a specific run.
 
 ## Output Rules
 
@@ -96,7 +113,7 @@ Then add one short interpretation line when useful.
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If no matching playbook definitions exist, say that directly and suggest the closest relevant options.
 - If no run records exist for the target, say that directly.
 - If execution prerequisites are missing, ask one focused clarification instead of guessing.

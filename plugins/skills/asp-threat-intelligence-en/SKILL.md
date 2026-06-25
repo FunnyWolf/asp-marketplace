@@ -32,8 +32,7 @@ Use this skill when the user needs to look up an indicator against threat intell
 
 ## Additional Information
 
-- Available providers can be listed by calling `ti_query` and checking the response.
-- Currently registered: AlienVaultOTX. More providers can be added as needed.
+- Provider names are deployment-specific. There is no MCP list-provider tool; if a provider name is unknown, omit `provider` or report the backend error.
 - `aggregated_risk_level` in the response is the highest risk across all providers: high > medium > low.
 
 ## Decision Flow
@@ -42,13 +41,21 @@ Use this skill when the user needs to look up an indicator against threat intell
 2. If the user specifies a provider name, pass it as the `provider` parameter.
 3. If the user wants to save the result, use `asp-enrichment-en` to persist as enrichment.
 
+## MCP Tool Contract
+
+- `ti_query(indicator, artifact_type="Unknown", provider=None)`
+  - `indicator` is the IOC value to query.
+  - `artifact_type` should be the ASP artifact type when known, such as `IP Address`, `Hostname`, `URL String`, `Hash`, `Email Address`, or `Unknown`.
+  - `provider` is optional. Omit it to query all configured providers. If provided and unknown, the backend raises an error.
+  - Returns `indicator`, `indicator_type`, per-provider `results`, `aggregated_risk_level`, and `errors`.
+
 ## SOP
 
 ### Query Threat Intelligence
 
 1. Extract the indicator from the user's request.
 2. Determine if the user wants a specific provider or all providers.
-3. Call `ti_query(indicator=<value>, provider=<name or None>)`.
+3. Call `ti_query(indicator=<value>, artifact_type=<type or "Unknown">, provider=<name or None>)`.
 4. Parse the response and present the findings.
 
 Preferred response structure:
@@ -84,7 +91,7 @@ Preferred response structure:
 
 ## Failure Handling
 
-- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify that the `ASP_MCP_SSE_URL` environment variable is configured and the ASP MCP server is running. Do not retry or bypass.
+- If an MCP tool call returns a connection error or timeout, reply with failure immediately. Prompt the user to verify `ASP_MCP_URL`, `ASP_MCP_API_KEY`, that the ASGI `/api/mcp` endpoint is reachable, and that the API key is not expired and belongs to an active user. Do not retry or bypass.
 - If the provider returns an error, report the error and suggest checking API configuration.
 - If the indicator format is invalid, explain the expected format for the type.
 - If no providers are available, report that directly.

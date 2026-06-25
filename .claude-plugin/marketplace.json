@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "Agentic SOC Platform Claude Code Plugin Marketplace",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "asp-plugin",
-      "description": "A comprehensive toolkit for operating the ASP platform.",
+      "description": "A comprehensive toolkit for operating the ASP platform through the current ASP MCP server.",
       "source": "./plugins",
       "category": "cybersecurity",
       "homepage": "https://github.com/FunnyWolf/asp-marketplace"
