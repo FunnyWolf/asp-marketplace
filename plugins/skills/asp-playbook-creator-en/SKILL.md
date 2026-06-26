@@ -3,6 +3,7 @@ name: asp-playbook-creator-en
 description: 'Guide users in writing ASP playbook scripts under backend/playbooks, including LLM analysis playbooks and SOAR automation playbooks.'
 argument-hint: '<playbook-goal>'
 compatibility: backend playbook development
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0
@@ -84,7 +85,7 @@ Use the project's prompt-language setting when loading prompt files:
 from pathlib import Path
 
 from django.conf import settings
-from apps.system_settings.runtime_config import get_prompt_language
+from apps.settings.runtime_config import get_prompt_language
 
 
 def read_playbook_prompt(playbook_name, prompt_name="System"):
@@ -103,7 +104,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from apps.agentic.runtime.base import BasePlaybook
-from apps.system_settings.runtime_config import get_prompt_language
+from apps.settings.runtime_config import get_prompt_language
 from integrations.llm.llmapi import LLMAPI
 
 

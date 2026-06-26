@@ -3,6 +3,7 @@ name: asp-module-creator-en
 description: 'Create an ASP alert processing module. Use when the user wants to create an ASP module for a SIEM rule, write an alert processing script, or add a new Python module under the MODULES directory.'
 argument-hint: '<rule-name>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0

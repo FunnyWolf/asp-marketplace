@@ -3,6 +3,7 @@ name: asp-siem-index-yaml-zh
 description: '新建或更新 SIEM 索引配置 YAML。当用户提到 SIEM index、字段配置、索引 schema、ELK/Splunk 字段发现、或想把后端字段同步到 YAML 配置文件时，主动使用此 skill——即使用户没有明确说"生成 YAML"。'
 argument-hint: '<index_name> <backend>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.2.0

@@ -3,6 +3,7 @@ name: asp-playbook-creator-zh
 description: '指导编写 ASP playbook 脚本。适用于在 backend/playbooks 下创建 LLM 智能分析类 playbook 或 SOAR 自动化处理类 playbook。'
 argument-hint: '<playbook-goal>'
 compatibility: backend playbook development
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0
@@ -84,7 +85,7 @@ backend/data/prompt/custom_triage/System_en.md
 from pathlib import Path
 
 from django.conf import settings
-from apps.system_settings.runtime_config import get_prompt_language
+from apps.settings.runtime_config import get_prompt_language
 
 
 def read_playbook_prompt(playbook_name, prompt_name="System"):
@@ -101,7 +102,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from apps.agentic.runtime.base import BasePlaybook
-from apps.system_settings.runtime_config import get_prompt_language
+from apps.settings.runtime_config import get_prompt_language
 from integrations.llm.llmapi import LLMAPI
 
 

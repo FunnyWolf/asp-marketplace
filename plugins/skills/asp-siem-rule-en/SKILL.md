@@ -3,6 +3,7 @@ name: asp-siem-rule-en
 description: 'Help users write Splunk SPL or ELK ES|QL detection rules. Use when users want to create SIEM detection rules, write alert queries, or design security detection logic.'
 argument-hint: '<threat-scenario>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0

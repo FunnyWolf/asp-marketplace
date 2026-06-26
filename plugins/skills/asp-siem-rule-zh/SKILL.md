@@ -3,6 +3,7 @@ name: asp-siem-rule-zh
 description: '帮助用户编写 Splunk SPL 或 ELK ES|QL 检测规则。当用户想创建 SIEM 检测规则、编写告警查询、设计安全检测逻辑时使用。'
 argument-hint: '<threat-scenario>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0

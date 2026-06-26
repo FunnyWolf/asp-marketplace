@@ -3,6 +3,7 @@ name: asp-siem-index-yaml-en
 description: 'Create or update SIEM index configuration YAML. Use when the user wants to generate field configs for a SIEM index, refresh an existing index YAML, or sync live backend fields into a config file.'
 argument-hint: '<index_name> <backend>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0

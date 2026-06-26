@@ -3,6 +3,7 @@ name: asp-module-creator-zh
 description: '创建 ASP 告警处理模块。当用户想为某个 SIEM rule 创建 ASP module、编写告警处理脚本、新建 backend/modules 目录下的 Python 模块时使用。'
 argument-hint: '<rule-name>'
 compatibility: connect to asp mcp server
+disable-model-invocation: true
 metadata:
   author: Funnywolf
   version: 0.1.0
