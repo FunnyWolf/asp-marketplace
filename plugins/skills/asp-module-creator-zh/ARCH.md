@@ -164,5 +164,5 @@ correlation_uid = generate_correlation_uid(
 | `backend/apps/alerts/models.py`                                         | Alert 枚举和模型                                      |
 | `backend/apps/artifacts/models.py`                                      | Artifact 枚举和模型                                   |
 | `backend/apps/cases/models.py`                                          | Case 枚举和模型                                      |
-| `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py` | 参考实现                                      |
-| `backend/examples/modules/<module_slug>/raw_alert_*.json` 或用户提供路径 | 开发调试用的 raw_alert 样本                            |
+| `backend/custom/modules/aws_iam_privilege_escalation_attach_user_policy.py` | 参考实现                                      |
+| `custom/data/modules/<module_slug>/raw_alert_*.json` 或用户提供路径 | 开发调试用的 raw_alert 样本                            |

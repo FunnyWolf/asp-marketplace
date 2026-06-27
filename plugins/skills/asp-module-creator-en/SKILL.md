@@ -30,7 +30,7 @@ Use this skill to guide the user through the full workflow — from requirement 
 - Before writing code, read the current backend enum models; enum values must come only from actual model definitions, never from memory or inference.
 - All modules must inherit `BaseModule` and implement the `run()` method.
 - SIRP data hierarchy: `Case → Alert → Artifact` (three-tier). Artifact is the smallest atomic investigation entity (an IP, a username); Alerts are attached to Cases; related alerts are aggregated into the same Case via `correlation_uid`. Enrichment is a cross-cutting attachment layer independent of the three-tier hierarchy — it can be attached to any level (Case / Alert / Artifact).
-- Reference implementation: `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records through `create_alert_with_context`, and requesting case analysis scheduling.
+- Reference implementation: `backend/custom/modules/aws_iam_privilege_escalation_attach_user_policy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records through `create_alert_with_context`, and requesting case analysis scheduling.
 
 ## Decision Flow
 
@@ -63,7 +63,7 @@ Call `read_stream_head(stream_name="<rule-name>", n=3)` to read the first few al
 Or call `read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` to read a specific message.
 
 **Method B (offline development):**
-Ask the user to provide one or more raw_alert JSON sample paths. Example samples live under `backend/examples/modules/<module_slug>/raw_alert_*.json`.
+Ask the user to provide one or more raw_alert JSON sample paths. Example samples live under `custom/data/modules/<module_slug>/raw_alert_*.json`.
 
 **Method C (direct paste):**
 Ask the user to open Redis Insight, select the `<rule-name>` stream, copy a message's JSON content, and paste it into the conversation.
@@ -116,7 +116,7 @@ If the aggregation key is unclear, propose candidate keys based on raw_alert and
 
 **Prerequisite action:** read the current backend enum models (`apps.alerts.models`, `apps.artifacts.models`, `apps.cases.models`, `apps.enrichments.models`) and confirm all enum values that will be used before writing code.
 
-Generate `MODULES/<rule-name>.py` using the following structure:
+Generate `custom/modules/<module_file>.py` using the following structure:
 
 ```python
 from apps.agentic.runtime.base import BaseModule, parse_event_time, generate_correlation_uid

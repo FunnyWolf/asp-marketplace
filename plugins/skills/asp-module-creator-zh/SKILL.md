@@ -32,7 +32,7 @@ metadata:
 - ASP 数据层级：`Case → Alert → Artifact`（三级体系）。Artifact 是调查的最小原子实体（一个 IP、一个用户名），应尽量从 raw_alert
   中提取；Alert 挂在 Case 下；同类告警通过 `correlation_uid` 聚合到同一个 Case。Enrichment 是独立于三级体系之外的横切附加层，可按需挂载到
   Case / Alert / Artifact 任意一级。
-- 参考实现：`backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py`，体现当前推荐的 raw_alert 消费、Artifact 提取、通过 `create_alert_with_context` 组装 Alert/Case 以及分析调度调用方式。
+- 参考实现：`backend/custom/modules/aws_iam_privilege_escalation_attach_user_policy.py`，体现当前推荐的 raw_alert 消费、Artifact 提取、通过 `create_alert_with_context` 组装 Alert/Case 以及分析调度调用方式。
 
 ## 决策流程
 
@@ -67,7 +67,7 @@ metadata:
 或调用 `read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` 读取指定消息。
 
 **方式 B（离线开发）：**
-要求用户提供一条或多条 raw_alert JSON 样本文件路径；示例样本位于 `backend/examples/modules/<module_slug>/raw_alert_*.json`（例如 `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy/raw_alert_1.json`），然后读取该文件。
+要求用户提供一条或多条 raw_alert JSON 样本文件路径；示例样本位于 `custom/data/modules/<module_slug>/raw_alert_*.json`（例如 `custom/data/modules/aws_iam_privilege_escalation_attach_user_policy/raw_alert_1.json`），然后读取该文件。
 
 **方式 C（直接粘贴）：**
 要求用户从 Redis Insight 中选择 `<rule-name>` stream，复制一条消息的 JSON 内容并粘贴到对话中。

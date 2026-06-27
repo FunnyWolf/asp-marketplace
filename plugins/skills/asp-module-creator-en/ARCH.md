@@ -16,7 +16,7 @@ Forwarding Tool
 Redis Stream: "<rule-name>"
   │
   ▼
-ASP Module: MODULES/<rule-name>.py
+ASP Module: custom/modules/<module_file>.py
   │  Framework continuously calls run(); Consumer Group ensures each alert is processed exactly once
   ▼
 SIRP (Case / Alert / Artifact / Enrichment)
@@ -29,11 +29,10 @@ SIRP (Case / Alert / Artifact / Enrichment)
 ```
 SIEM Rule name
     = Redis Stream name
-    = MODULES/<filename>.py  (without .py)
+    = Module.STREAM_NAME
 ```
 
-All three must be identical (case-sensitive). The framework relies on this convention to route alerts to the correct
-module. Any mismatch means alerts will not be consumed.
+`STREAM_NAME` must match the Redis Stream name exactly (case-sensitive). The filename should use snake_case and does not define routing.
 
 ---
 
@@ -162,5 +161,5 @@ correlation_uid = Correlation.generate_correlation_uid(
 | `backend/apps/alerts/models.py`                                         | Alert enums and model                                                               |
 | `backend/apps/artifacts/models.py`                                      | Artifact enums and model                                                            |
 | `backend/apps/cases/models.py`                                          | Case enums and model                                                                |
-| `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py` | Reference implementation                                                       |
-| `backend/examples/modules/<rule-name>/raw_alert_*.json`                 | raw_alert samples for development and debugging                                     |
+| `backend/custom/modules/aws_iam_privilege_escalation_attach_user_policy.py` | Reference implementation                                                       |
+| `custom/data/modules/<rule-name>/raw_alert_*.json`                      | raw_alert samples for development and debugging                                     |

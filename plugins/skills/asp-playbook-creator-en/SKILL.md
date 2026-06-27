@@ -54,7 +54,7 @@ Use this skill when the user wants to create or modify an ASP playbook script. T
 2. Confirm what Case data is needed: alerts, artifacts, comments, enrichments.
 3. Confirm whether `user_input` should affect logic or prompts.
 4. Confirm where output should go: run `remark` only, enrichment/comment write-back, or an external system.
-5. For LLM analysis playbooks, confirm the prompt directory name. Store prompts under `backend/data/prompt/<playbookname>/`.
+5. For LLM analysis playbooks, confirm the prompt directory name. Store prompts under `custom/data/playbooks/<playbookname>/`.
 6. Read related backend examples, models, and services before generating code.
 
 ## Reference Files
@@ -65,14 +65,14 @@ Use this skill when the user wants to create or modify an ASP playbook script. T
 - `backend/playbooks/investigation.py`: LLM analysis example.
 - `backend/playbooks/knowledge_extraction.py`: LLM knowledge extraction example.
 - `backend/playbooks/threat_intelligence_enrichment.py`: SOAR enrichment example.
-- `backend/playbooks/cmdb_enrichment.py`: SOAR internal-service example.
+- `backend/custom/playbooks/cmdb_enrichment.py`: custom SOAR internal-service example.
 - `backend/apps/agentic/analysis/prompts.py`: existing prompt-loading pattern.
 
 ## LLM Analysis Template
 
 Use this pattern when the user wants custom analysis logic, prompt-driven triage, or automated decisions based on LLM output.
 
-Store prompts under `backend/data/prompt/<playbookname>/`, for example:
+Store prompts under `custom/data/playbooks/<playbookname>/`, for example:
 
 ```text
 backend/data/prompt/custom_triage/System_zh.md
@@ -169,7 +169,7 @@ class Playbook(BasePlaybook):
 
 Notes:
 - `investigation.py` and `knowledge_extraction.py` only show how to use `self.case`, `self.user_input`, and `self.playbook_run`; do not assume their analysis logic must be reused.
-- Prompt content is scenario-specific. Store it under `backend/data/prompt/<playbookname>/`; do not hardcode long prompts in the playbook script.
+- Prompt content is scenario-specific. Store it under `custom/data/playbooks/<playbookname>/`; do not hardcode long prompts in the playbook script.
 - Use Enrichment for structured analysis results. Use Comment for analyst-readable natural-language notes.
 
 ## SOAR Automation Template

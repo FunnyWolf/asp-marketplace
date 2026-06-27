@@ -54,7 +54,7 @@ metadata:
 2. 确认目标 Case 数据需求：是否需要 alerts、artifacts、comments、enrichments。
 3. 确认是否需要 `user_input` 影响逻辑或 prompt。
 4. 确认输出写到哪里：只写 run `remark`，还是额外创建 enrichment/comment，或调用外部系统。
-5. LLM 智能分析类还要确认提示词目录名，推荐放在 `backend/data/prompt/<playbookname>/`。
+5. LLM 智能分析类还要确认提示词目录名，推荐放在 `custom/data/playbooks/<playbookname>/`。
 6. 读取相关 backend 示例和模型/服务后再生成代码。
 
 ## 参考文件
@@ -65,14 +65,14 @@ metadata:
 - `backend/playbooks/investigation.py`：LLM 分析类基础示例。
 - `backend/playbooks/knowledge_extraction.py`：LLM 知识提取类基础示例。
 - `backend/playbooks/threat_intelligence_enrichment.py`：SOAR 富化类示例。
-- `backend/playbooks/cmdb_enrichment.py`：SOAR 内部服务调用类示例。
+- `backend/custom/playbooks/cmdb_enrichment.py`：自定义 SOAR 内部服务调用类示例。
 - `backend/apps/agentic/analysis/prompts.py`：现有提示词加载方式示例。
 
 ## LLM 智能分析类模板
 
 适用于用户希望编写自己的分析逻辑、提示词、研判流程，或根据 LLM 输出继续做自动化分诊/写回的场景。
 
-提示词建议放在 `backend/data/prompt/<playbookname>/` 下，例如：
+提示词建议放在 `custom/data/playbooks/<playbookname>/` 下，例如：
 
 ```text
 backend/data/prompt/custom_triage/System_zh.md
@@ -167,7 +167,7 @@ class Playbook(BasePlaybook):
 
 注意：
 - `investigation.py` 和 `knowledge_extraction.py` 只展示如何使用 `self.case`、`self.user_input`、`self.playbook_run`；不要求复用它们的分析逻辑。
-- Prompt 内容由用户按场景设计，推荐放在 `backend/data/prompt/<playbookname>/`，不要硬编码在 playbook 脚本里。
+- Prompt 内容由用户按场景设计，推荐放在 `custom/data/playbooks/<playbookname>/`，不要硬编码在 playbook 脚本里。
 - 如果要保存结构化分析结果，优先写 Enrichment；如果只是分析师可读说明，可写 Comment。
 
 ## SOAR 自动化处理类模板
