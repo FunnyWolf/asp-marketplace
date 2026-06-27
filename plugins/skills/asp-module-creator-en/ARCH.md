@@ -156,11 +156,11 @@ correlation_uid = Correlation.generate_correlation_uid(
 
 | File                                                                    | Purpose                                                                             |
 |-------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| `backend/modules/<rule-name>.py`                                        | Alert processing module; one file per rule                                          |
+| `custom/modules/<rule-name>.py`                                         | Alert processing module; one file per rule                                          |
 | `backend/apps/agentic/runtime/base.py`                                  | BaseModule helpers such as `parse_event_time` and `generate_correlation_uid`        |
 | `backend/apps/agentic/services/alerts.py`                               | `create_alert_with_context(...)` service                                            |
 | `backend/apps/alerts/models.py`                                         | Alert enums and model                                                               |
 | `backend/apps/artifacts/models.py`                                      | Artifact enums and model                                                            |
 | `backend/apps/cases/models.py`                                          | Case enums and model                                                                |
-| `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`    | Reference implementation                                                            |
-| `backend/DATA/MODULES/<rule-name>/raw_alert_*.json`                     | raw_alert samples for development and debugging                                     |
+| `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py` | Reference implementation                                                       |
+| `backend/examples/modules/<rule-name>/raw_alert_*.json`                 | raw_alert samples for development and debugging                                     |

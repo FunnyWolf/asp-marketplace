@@ -1,6 +1,6 @@
 ---
 name: asp-module-creator-en
-description: 'Create an ASP alert processing module. Use when the user wants to create an ASP module for a SIEM rule, write an alert processing script, or add a new Python module under the MODULES directory.'
+description: 'Create an ASP alert processing module. Use when the user wants to create an ASP module for a SIEM rule, write an alert processing script, or add a new Python module under custom/modules.'
 argument-hint: '<rule-name>'
 compatibility: connect to asp mcp server
 disable-model-invocation: true
@@ -20,17 +20,17 @@ Use this skill to guide the user through the full workflow — from requirement 
 ## When to Use
 
 - The user wants to create an ASP processing module for a SIEM rule.
-- The user wants to add a new Python alert processing script under `MODULES/`.
+- The user wants to add a new Python alert processing script under `custom/modules/`.
 - The user wants to integrate a SIEM alert into the ASP Alert/Case management pipeline.
 
 ## Operating Rules
 
-- The module filename must exactly match the SIEM rule name (case-sensitive) — Rule name = Redis Stream name = filename. This is a hard constraint; any mismatch will prevent the framework from routing alerts to the module.
+- `STREAM_NAME` must exactly match the Redis Stream name, which is usually also the SIEM rule name. Module files live under `custom/modules/`; snake_case filenames are recommended and do not define routing.
 - A raw_alert sample must be obtained before writing any code. Never guess field structure.
 - Before writing code, read the current backend enum models; enum values must come only from actual model definitions, never from memory or inference.
 - All modules must inherit `BaseModule` and implement the `run()` method.
 - SIRP data hierarchy: `Case → Alert → Artifact` (three-tier). Artifact is the smallest atomic investigation entity (an IP, a username); Alerts are attached to Cases; related alerts are aggregated into the same Case via `correlation_uid`. Enrichment is a cross-cutting attachment layer independent of the three-tier hierarchy — it can be attached to any level (Case / Alert / Artifact).
-- Reference implementation: `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records through `create_alert_with_context`, and requesting case analysis scheduling.
+- Reference implementation: `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py`, which demonstrates the current recommended pattern for consuming raw_alerts, extracting Artifacts, assembling Alert/Case records through `create_alert_with_context`, and requesting case analysis scheduling.
 
 ## Decision Flow
 
@@ -44,7 +44,7 @@ Use this skill to guide the user through the full workflow — from requirement 
 ### Step 1 — Get the Rule Name
 
 Ask the user for the full SIEM Rule name, e.g. `XXX-01-YYY-ZZZ1-ZZZ2-ZZZ3`.
-- The module file will be named `MODULES/XXX-01-YYY-ZZZ1-ZZZ2-ZZZ3.py`.
+- The module file should be written to `custom/modules/<module_file>.py`.
 - Alerts will be consumed from the Redis Stream named `XXX-01-YYY-ZZZ1-ZZZ2-ZZZ3`.
 
 ### Step 2 — Confirm Prerequisites
@@ -63,7 +63,7 @@ Call `read_stream_head(stream_name="<rule-name>", n=3)` to read the first few al
 Or call `read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` to read a specific message.
 
 **Method B (offline development):**
-Ask the user to copy one or more raw_alert JSON samples to `DATA/MODULES/<rule-name>/raw_alert_*.json`, then read the file.
+Ask the user to provide one or more raw_alert JSON sample paths. Example samples live under `backend/examples/modules/<module_slug>/raw_alert_*.json`.
 
 **Method C (direct paste):**
 Ask the user to open Redis Insight, select the `<rule-name>` stream, copy a message's JSON content, and paste it into the conversation.

@@ -1,6 +1,6 @@
 ---
 name: asp-module-creator-zh
-description: '创建 ASP 告警处理模块。当用户想为某个 SIEM rule 创建 ASP module、编写告警处理脚本、新建 backend/modules 目录下的 Python 模块时使用。'
+description: '创建 ASP 告警处理模块。当用户想为某个 SIEM rule 创建 ASP module、编写告警处理脚本、新建 custom/modules 目录下的 Python 模块时使用。'
 argument-hint: '<rule-name>'
 compatibility: connect to asp mcp server
 disable-model-invocation: true
@@ -20,19 +20,19 @@ metadata:
 ## 适用场景
 
 - 用户想为某个 SIEM rule 创建对应的 ASP 处理模块。
-- 用户想在 `backend/modules/` 目录下新建一个 Python 告警处理脚本。
+- 用户想在 `custom/modules/` 目录下新建一个 Python 告警处理脚本。
 - 用户想把某个 SIEM 告警接入 ASP 的 Alert/Case 管理流程。
 
 ## 运行规则
 
-- `STREAM_NAME` 必须与 Redis Stream 名称完全一致（通常也等于 SIEM rule 名称）。模块文件位于 `backend/modules/`，推荐使用 snake_case 文件名；文件名不再承担路由语义。
+- `STREAM_NAME` 必须与 Redis Stream 名称完全一致（通常也等于 SIEM rule 名称）。模块文件位于 `custom/modules/`，推荐使用 snake_case 文件名；文件名不再承担路由语义。
 - 编写代码前必须先获取 raw_alert 样本，不得凭空猜测字段结构。
 - 编写代码前必须读取当前 backend enum model，所有 enum 值只能使用实际模型定义中的值，不得凭记忆或推断自行发明。
 - 所有模块必须继承 `BaseModule` 并实现 `run()` 方法。
 - ASP 数据层级：`Case → Alert → Artifact`（三级体系）。Artifact 是调查的最小原子实体（一个 IP、一个用户名），应尽量从 raw_alert
   中提取；Alert 挂在 Case 下；同类告警通过 `correlation_uid` 聚合到同一个 Case。Enrichment 是独立于三级体系之外的横切附加层，可按需挂载到
   Case / Alert / Artifact 任意一级。
-- 参考实现：`backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`，体现当前推荐的 raw_alert 消费、Artifact 提取、通过 `create_alert_with_context` 组装 Alert/Case 以及分析调度调用方式。
+- 参考实现：`backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py`，体现当前推荐的 raw_alert 消费、Artifact 提取、通过 `create_alert_with_context` 组装 Alert/Case 以及分析调度调用方式。
 
 ## 决策流程
 
@@ -48,7 +48,7 @@ metadata:
 要求用户提供 SIEM Rule 的完整名称，例如 `XXX-01-YYY-ZZZ1-ZZZ2-ZZZ3`。
 
 - `STREAM_NAME` 将设置为该 Rule/Stream 名称。
-- 模块文件写入 `backend/modules/<module_file>.py`，文件名推荐根据 rule 名生成 snake_case，例如 `xxx_01_yyy_zzz1_zzz2_zzz3.py`。
+- 模块文件写入 `custom/modules/<module_file>.py`，文件名推荐根据 rule 名生成 snake_case，例如 `xxx_01_yyy_zzz1_zzz2_zzz3.py`。
 
 ### Step 2 — 确认前置条件
 
@@ -67,7 +67,7 @@ metadata:
 或调用 `read_stream_message_by_id(stream_name="<rule-name>", message_id=<id>)` 读取指定消息。
 
 **方式 B（离线开发）：**
-要求用户提供一条或多条 raw_alert JSON 样本文件路径；当前项目约定放在 `backend/data/modules/<module_slug>/raw_alert_*.json`（例如 `backend/data/modules/aws_iam_privilege_escalation_attach_user_policy/raw_alert_1.json`），然后读取该文件。
+要求用户提供一条或多条 raw_alert JSON 样本文件路径；示例样本位于 `backend/examples/modules/<module_slug>/raw_alert_*.json`（例如 `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy/raw_alert_1.json`），然后读取该文件。
 
 **方式 C（直接粘贴）：**
 要求用户从 Redis Insight 中选择 `<rule-name>` stream，复制一条消息的 JSON 内容并粘贴到对话中。
@@ -131,7 +131,7 @@ metadata:
 
 **前置动作：** 读取当前 backend enum model（`apps.alerts.models`、`apps.artifacts.models`、`apps.cases.models`、`apps.enrichments.models`），确认所有需要用到的 enum 合法值，再开始写代码。
 
-按以下结构生成 `backend/modules/<module_file>.py`：
+按以下结构生成 `custom/modules/<module_file>.py`：
 
 ```python
 from apps.agentic.runtime.base import BaseModule, parse_event_time, generate_correlation_uid

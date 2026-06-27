@@ -16,7 +16,7 @@ SIEM（ELK / Splunk）
 Redis Stream: "<rule-name>"
   │
   ▼
-ASP Module: backend/modules/<module_file>.py
+ASP Module: custom/modules/<module_file>.py
   │  module_engine 调用 Module.run(message["data"])，Consumer Group 模式保证每条告警只处理一次
   ▼
 ASP backend（Case / Alert / Artifact / Enrichment）
@@ -32,7 +32,7 @@ SIEM Rule 名称
     = Module.STREAM_NAME
 
 模块文件路径
-    = backend/modules/<snake_case_module_file>.py
+    = custom/modules/<snake_case_module_file>.py
 ```
 
 `STREAM_NAME` 必须与 Redis Stream 名称完全一致（含大小写），框架依赖它订阅对应 stream。文件名推荐由 rule 名转换为 snake_case，但不参与路由。
@@ -158,11 +158,11 @@ correlation_uid = generate_correlation_uid(
 
 | 文件                                                                      | 用途                                             |
 |-------------------------------------------------------------------------|------------------------------------------------|
-| `backend/modules/<module_file>.py`                                      | 告警处理模块，一个 rule 通常对应一个文件                          |
+| `custom/modules/<module_file>.py`                                       | 告警处理模块，一个 rule 通常对应一个文件                          |
 | `backend/apps/agentic/runtime/base.py`                                  | BaseModule 辅助函数，如 `parse_event_time` 和 `generate_correlation_uid` |
 | `backend/apps/agentic/services/alerts.py`                               | `create_alert_with_context(...)` 服务               |
 | `backend/apps/alerts/models.py`                                         | Alert 枚举和模型                                      |
 | `backend/apps/artifacts/models.py`                                      | Artifact 枚举和模型                                   |
 | `backend/apps/cases/models.py`                                          | Case 枚举和模型                                      |
-| `backend/modules/aws_iam_privilege_escalation_attach_user_policy.py`    | 参考实现                                           |
-| `backend/data/modules/<module_slug>/raw_alert_*.json` 或用户提供路径     | 开发调试用的 raw_alert 样本                            |
+| `backend/examples/modules/aws_iam_privilege_escalation_attach_user_policy.py` | 参考实现                                      |
+| `backend/examples/modules/<module_slug>/raw_alert_*.json` 或用户提供路径 | 开发调试用的 raw_alert 样本                            |

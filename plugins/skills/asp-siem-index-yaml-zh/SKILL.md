@@ -25,7 +25,7 @@ metadata:
 
 ## 运行规则
 
-- 配置文件固定存放在 `backend/data/siem/<index_name>.yaml`。
+- 配置文件固定存放在 `custom/data/siem/<index_name>.yaml`。
 - 必须通过 `siem_discover_index_fields` 从后端拉取实时字段，不得跳过直接手写。
 - `name`、`type`、`sample_values` 直接采用发现结果，`sample_values` 保持原始类型，不强转字符串。
 - `description` 和 `is_key_field` 由模型根据字段语义和 sample_values 推断，标注为待确认。
@@ -34,7 +34,7 @@ metadata:
 ## 决策流程
 
 1. 如果用户未提供 `index_name`、`backend` 或采样时间范围，先询问。
-2. 如果 `backend/data/siem/<index_name>.yaml` 已存在，读取并作为对比基线。
+2. 如果 `custom/data/siem/<index_name>.yaml` 已存在，读取并作为对比基线。
 3. 调用 `siem_discover_index_fields` 获取实时字段。
 4. 生成草案，展示给用户 review。
 5. 用户确认后写入文件。
@@ -50,7 +50,7 @@ metadata:
 
 ### Step 2 — 检查现有配置
 
-检查 `backend/data/siem/<index_name>.yaml` 是否已存在。
+检查 `custom/data/siem/<index_name>.yaml` 是否已存在。
 - 如果存在，读取作为基线，后续展示差异。
 - 如果不存在，标记为新建。
 
@@ -141,7 +141,7 @@ MCP 工具契约：
 
 ### Step 6 — 写入文件
 
-用户确认后，将完整 YAML 写入 `backend/data/siem/<index_name>.yaml`。
+用户确认后，将完整 YAML 写入 `custom/data/siem/<index_name>.yaml`。
 
 YAML 顶层结构：
 
