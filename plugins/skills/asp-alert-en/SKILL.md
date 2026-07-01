@@ -5,7 +5,7 @@ argument-hint: 'review alert <alert_id> | list alerts [filters]'
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ alert-management, soc, triage, investigation ]
@@ -26,7 +26,7 @@ An alert is secondary data in ASP. Each alert belongs to a case, and each alert 
 ## Operating Rules
 
 - Keep the response focused on triage value rather than repeating schema fields.
-- If the user is working on a specific alert, prefer `list_alerts(alert_id=<id>, limit=1, include_related=True)` because the current MCP surface does not expose a separate `get_alert` tool.
+- If the user is working on a specific alert, prefer `list_alerts(alert_id=<id>, limit=1, include_related=True, include_comments=True)` because the current MCP surface does not expose a separate `get_alert` tool.
 - Alerts are currently read-only. If the user wants to save structured analysis back onto the alert, use the `asp-enrichment-en` skill.
 - If the user wants a natural-language note on the alert, use the `asp-comment-en` skill.
 
@@ -36,13 +36,13 @@ An alert is secondary data in ASP. Each alert belongs to a case, and each alert 
 
 ## Decision Flow
 
-1. If the user provides a specific alert ID or says "open", "show", "review", or "summarize" an alert, call `list_alerts(alert_id=<id>, limit=1, include_related=True)`.
-2. If the user wants to browse or compare alerts, use `list_alerts(..., include_related=False)` with supported filters.
+1. If the user provides a specific alert ID or says "open", "show", "review", or "summarize" an alert, call `list_alerts(alert_id=<id>, limit=1, include_related=True, include_comments=True)`.
+2. If the user wants to browse or compare alerts, use `list_alerts(..., include_related=False, include_comments=False)` with supported filters.
 3. If the user wants to attach analysis results, intelligence, or structured context to the alert, use the `asp-enrichment-en` skill.
 
 ## MCP Tool Contract
 
-- `list_alerts(alert_id=None, status=None, severity=None, confidence=None, correlation_uid=None, include_related=False, limit=10)`
+- `list_alerts(alert_id=None, status=None, severity=None, confidence=None, correlation_uid=None, include_related=False, limit=10, include_comments=False, comments_limit=20)`
   - `alert_id` is a readable ID such as `alert_000001`.
   - `status`: `Unknown`, `New`, `In Progress`, `Suppressed`, `Resolved`, `Archived`, `Deleted`, `Other`.
   - `severity`: `Unknown`, `Informational`, `Low`, `Medium`, `High`, `Critical`.
@@ -50,13 +50,15 @@ An alert is secondary data in ASP. Each alert belongs to a case, and each alert 
   - `correlation_uid` matches alerts linked to the same case correlation.
   - `limit` is clamped to 1-100.
   - `include_related=False` returns a compact alert record. Set `include_related=True` only when reviewing a specific alert and you need artifacts and enrichments.
+  - `include_comments=True` includes recent comments. `comments_limit` defaults to 20 and is capped at 50.
+  - Comment attachments include metadata and download URLs only. Use `asp-file-en` / `get_file` to fetch file metadata again.
 
 ## SOP
 
 ### Review One Alert
 
-1. If the user wants to review, analyze, or inspect alert details, call `list_alerts(alert_id=<id>, limit=1, include_related=True)`.
-2. If the user only needs the basic alert information, call `list_alerts(alert_id=<id>, limit=1, include_related=False)`.
+1. If the user wants to review, analyze, or inspect alert details, call `list_alerts(alert_id=<id>, limit=1, include_related=True, include_comments=True)`.
+2. If the user only needs the basic alert information, call `list_alerts(alert_id=<id>, limit=1, include_related=False, include_comments=False)`.
 3. If the result is empty, state that the alert was not found.
 4. Parse the first JSON record.
 5. Present only the most useful triage fields.

@@ -5,7 +5,7 @@ argument-hint: 'list playbook definitions | run playbook <name> for <case_id> | 
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ playbook, automation, soar, investigation ]
@@ -35,7 +35,7 @@ Use this skill when the user needs to work with playbook automation on ASP.
 ## Decision Flow
 
 1. If the user wants to know what can run, call `list_playbook_templates`.
-2. If the user wants to confirm whether automation has run for a case, call `list_playbooks(case_id=<case_id>, include_related=False)`.
+2. If the user wants to confirm whether automation has run for a case, call `list_playbooks(case_id=<case_id>, include_related=False, include_comments=False)`.
 3. If the user wants to run automation and already provides the definition name plus target case, call `execute_playbook`.
 4. If the user wants to run automation but does not know the definition name, call `list_playbook_templates` first.
 5. If the user wants the overall automation history, call `list_playbooks` with the narrowest useful filters.
@@ -49,11 +49,13 @@ Use this skill when the user needs to work with playbook automation on ASP.
   - `case_id` is a readable ID such as `case_000001`.
   - `user_input` is optional run-specific guidance.
   - Creates a pending playbook run record.
-- `list_playbooks(playbook_id=None, job_status=None, case_id=None, include_related=False, limit=10)`
+- `list_playbooks(playbook_id=None, job_status=None, case_id=None, include_related=False, limit=10, include_comments=False, comments_limit=20)`
   - `playbook_id` is a readable run ID such as `playbook_000001`.
   - `job_status`: `Success`, `Failed`, `Pending`, `Running`.
   - `case_id` filters runs linked to the case.
   - `include_related=False` returns compact run records. Set `include_related=True` only when reviewing a specific run and you need compact linked case details.
+  - `include_comments=True` includes recent comments on the run. `comments_limit` defaults to 20 and is capped at 50.
+  - Comment attachments include metadata and download URLs only. Use `asp-file-en` / `get_file` to fetch file metadata again.
   - `limit` is clamped to 1-100.
 
 ## SOP
@@ -85,7 +87,7 @@ Preferred response structure:
 
 1. Extract supported filters: `playbook_id`, `job_status`, `case_id`, and `limit`.
 2. Use `case_id` when the user is asking from the perspective of one case.
-3. Use `include_related=False` for history/list views. Use `include_related=True` only for one specific run that needs linked case context.
+3. Use `include_related=False, include_comments=False` for history/list views. Use `include_related=True` only for one specific run that needs linked case context, and `include_comments=True` only when comments are needed.
 4. Call `list_playbooks`.
 5. Parse the returned JSON strings.
 6. Present a short run-oriented view.

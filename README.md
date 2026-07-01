@@ -28,6 +28,7 @@ Create an ASP user API key in the platform and set both environment variables be
 - `asp-cmdb-en` / `asp-cmdb-zh`
 - `asp-comment-en` / `asp-comment-zh`
 - `asp-enrichment-en` / `asp-enrichment-zh`
+- `asp-file-en` / `asp-file-zh`
 - `asp-knowledge-en` / `asp-knowledge-zh`
 - `asp-module-creator-en` / `asp-module-creator-zh`
 - `asp-playbook-en` / `asp-playbook-zh`
@@ -53,6 +54,7 @@ plugins/
     ├── asp-cmdb-*
     ├── asp-comment-*
     ├── asp-enrichment-*
+    ├── asp-file-*
     ├── asp-knowledge-*
     ├── asp-module-creator-*
     ├── asp-playbook-*

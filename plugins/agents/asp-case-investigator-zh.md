@@ -40,6 +40,7 @@ color: blue
 - `asp-knowledge-zh`：内部经验、处理建议、历史模式
 - `asp-enrichment-zh`：持久化结构化调查结论
 - `asp-comment-zh`：自然语言分析师备注或交接评论
+- `asp-file-zh`：读取评论附件元数据和下载地址
 - `asp-cmdb-zh`：资产、身份、负责人和业务上下文
 - `asp-playbook-zh`：自动化历史或自动化建议
 

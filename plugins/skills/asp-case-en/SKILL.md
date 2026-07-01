@@ -5,7 +5,7 @@ argument-hint: 'review case <case_id> | list cases [filters] | update case <case
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.3.0
+  version: 0.3.1
   mcp-server: asp
   category: cyber security
   tags: [ case-management, soc, triage, investigation ]
@@ -27,7 +27,7 @@ Case is the core investigation object in ASP. One case can have one or more aler
 ## Operating Rules
 
 - Summarize case data for decision-making, not as raw schema output.
-- Keep the case as the primary view. Only pull related alerts, comments, enrichments, or playbooks when they help answer the case question.
+- Keep the case as the primary view. Only pull related alerts, comments, enrichments, or playbooks when they help answer the case question; comments require explicit `include_comments=True`.
 
 ## Additional Information
 
@@ -35,8 +35,8 @@ Case is the core investigation object in ASP. One case can have one or more aler
 
 ## Decision Flow
 
-1. If the user provides a specific case ID or says "open", "show", "review", or "summarize" a case, call `list_cases(case_id=<id>, limit=1, include_related=True)`.
-2. If the user wants to browse or compare cases, use `list_cases(..., include_related=False)` unless related alerts, enrichments, comments, and playbooks are needed.
+1. If the user provides a specific case ID or says "open", "show", "review", or "summarize" a case, call `list_cases(case_id=<id>, limit=1, include_related=True, include_comments=True)`.
+2. If the user wants to browse or compare cases, use `list_cases(..., include_related=False, include_comments=False)` unless related alerts, enrichments, playbooks, or comments are needed.
 3. If the user wants to update AI analysis fields or summary, use `update_case`.
 4. If the user wants to add a natural-language note, use the `asp-comment-en` skill.
 5. If the user gives multiple filters, apply only the ones ASP supports directly and state any unsupported filters explicitly.
@@ -44,14 +44,16 @@ Case is the core investigation object in ASP. One case can have one or more aler
 
 ## MCP Tool Contract
 
-- `list_cases(case_id=None, status=None, severity=None, confidence=None, verdict=None, correlation_uid=None, title=None, tags=None, include_related=True, limit=10)`
+- `list_cases(case_id=None, status=None, severity=None, confidence=None, verdict=None, correlation_uid=None, title=None, tags=None, include_related=True, limit=10, include_comments=False, comments_limit=20)`
   - `case_id` is a readable ID such as `case_000001`.
   - `status`: `New`, `In Progress`, `On Hold`, `Resolved`, `Closed`.
   - `severity`: `Unknown`, `Informational`, `Low`, `Medium`, `High`, `Critical`.
   - `confidence`: `Unknown`, `Low`, `Medium`, `High`.
   - `verdict`: `Unknown`, `False Positive`, `True Positive`, `Disregard`, `Suspicious`, `Benign`, `Test`, `Insufficient Data`, `Security Risk`, `Managed Externally`, `Duplicate`, `Other`.
   - `tags` may be a string, comma-separated string, JSON array string, or list. All tag filters are applied.
-  - `include_related=True` includes related alerts, enrichments, comments, and playbooks. Use `False` for compact lists.
+  - `include_related=True` includes related alerts, enrichments, and playbooks. It does not implicitly include comments.
+  - `include_comments=True` includes recent comments. `comments_limit` defaults to 20 and is capped at 50.
+  - Comment attachments include only `file_key`, filename, size, type, and download URL. Use `asp-file-en` / `get_file` to fetch file metadata again.
   - `limit` is clamped to 1-100.
 - `update_case(case_id, severity_ai=None, confidence_ai=None, impact_ai=None, priority_ai=None, verdict_ai=None, summary=None)`
   - This tool only updates AI-assessed fields and `summary`; it does not update analyst `status`, analyst `severity`, analyst `verdict`, assignee, or workflow timestamps.
@@ -61,8 +63,8 @@ Case is the core investigation object in ASP. One case can have one or more aler
 
 ### Review One Case
 
-1. If the user wants to review, analyze, or inspect case details, call `list_cases(case_id=<id>, limit=1, include_related=True)` to fetch the full related data, including alerts, enrichments, comments, and playbooks.
-2. If the user only needs the basic case information, call `list_cases(case_id=<id>, limit=1, include_related=False)`.
+1. If the user wants to review, analyze, or inspect case details, call `list_cases(case_id=<id>, limit=1, include_related=True, include_comments=True)` to fetch related alerts, enrichments, playbooks, and recent comments.
+2. If the user only needs the basic case information, call `list_cases(case_id=<id>, limit=1, include_related=False, include_comments=False)`.
 3. If the result is empty, state that the case was not found.
 4. Present only the parts most relevant to the user's request.
 5. Only emphasize missing or suspicious fields when they matter to the user's goal.
@@ -72,7 +74,7 @@ Preferred response structure:
 - `Case`: case ID, title, severity, status, verdict, confidence, impact, priority, correlation UID, tags.
 - `Timeline`: created time.
 - `Key Alerts`: only the most relevant alerts, not every alert by default.
-- `Comments`: only the key analyst or system comment points when relevant.
+- `Comments`: only the key analyst or system comment points when relevant; list attachment filenames and `file_key` values only.
 - `Analyst / AI Notes`: comment, summary, and AI fields when relevant.
 
 When the user asks "what happened" or "help me understand this case", start with a short analytical summary before structured details.

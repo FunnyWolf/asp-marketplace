@@ -5,7 +5,7 @@ argument-hint: 'review alert <alert_id> | list alerts [filters]'
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ alert-management, soc, triage, investigation ]
@@ -36,13 +36,13 @@ Alert 是 ASP 中的二级数据,每个 Alert 都会挂载到一个 Case,一个 
 
 ## 决策流程
 
-1. 如果用户提供了具体告警 ID，或要求 open/show/review/summarize 某条告警，调用 `list_alerts(alert_id=<id>, limit=1, include_related=True)`。
-2. 如果用户要浏览或对比多条告警，使用 `list_alerts(..., include_related=False)` 和支持的过滤条件。
+1. 如果用户提供了具体告警 ID，或要求 open/show/review/summarize 某条告警，调用 `list_alerts(alert_id=<id>, limit=1, include_related=True, include_comments=True)`。
+2. 如果用户要浏览或对比多条告警，使用 `list_alerts(..., include_related=False, include_comments=False)` 和支持的过滤条件。
 3. 如果用户要附加分析结果、情报或结构化上下文，使用 `asp-enrichment-zh` skill。
 
 ## MCP 工具契约
 
-- `list_alerts(alert_id=None, status=None, severity=None, confidence=None, correlation_uid=None, include_related=False, limit=10)`
+- `list_alerts(alert_id=None, status=None, severity=None, confidence=None, correlation_uid=None, include_related=False, limit=10, include_comments=False, comments_limit=20)`
   - `alert_id` 是 `alert_000001` 这类可读 ID。
   - `status`：`Unknown`、`New`、`In Progress`、`Suppressed`、`Resolved`、`Archived`、`Deleted`、`Other`。
   - `severity`：`Unknown`、`Informational`、`Low`、`Medium`、`High`、`Critical`。
@@ -50,13 +50,15 @@ Alert 是 ASP 中的二级数据,每个 Alert 都会挂载到一个 Case,一个 
   - `correlation_uid` 用于匹配同一 case correlation 下的告警。
   - `limit` 会被限制在 1-100。
   - `include_related=False` 返回紧凑告警记录。只有审查具体某一条且需要 artifacts、enrichments 时才设为 `True`。
+  - `include_comments=True` 会包含最近的 comments；`comments_limit` 默认 20，最大 50。
+  - comment 附件只返回元数据和下载地址；需要下载文件时使用 `asp-file-zh` / `get_file`。
 
 ## SOP
 
 ### 审查单条告警
 
-1. 如果用户要求审查、分析或查看告警详情，调用 `list_alerts(alert_id=<id>, limit=1, include_related=True)`。
-2. 如果只需要快速查看告警基本信息，调用 `list_alerts(alert_id=<id>, limit=1, include_related=False)` 即可。
+1. 如果用户要求审查、分析或查看告警详情，调用 `list_alerts(alert_id=<id>, limit=1, include_related=True, include_comments=True)`。
+2. 如果只需要快速查看告警基本信息，调用 `list_alerts(alert_id=<id>, limit=1, include_related=False, include_comments=False)` 即可。
 3. 如果结果为空，直接说明找不到该告警。
 4. 解析第一条 JSON 记录。
 5. 只呈现最有价值的分诊字段。

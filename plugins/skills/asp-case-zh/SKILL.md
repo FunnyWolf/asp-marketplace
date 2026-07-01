@@ -5,7 +5,7 @@ argument-hint: 'review case <case_id> | list cases [filters] | update case <case
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.3.0
+  version: 0.3.1
   mcp-server: asp
   category: cyber security
   tags: [ case-management, soc, triage, investigation ]
@@ -28,7 +28,7 @@ Case。
 ## 运行规则
 
 - 总结 case 数据时要服务于行动判断，而不是输出原始 schema。
-- 保持 case 作为用户的主要视图。只有在能帮助回答 case 问题时，才拉取相关告警、讨论。
+- 保持 case 作为用户的主要视图。只有在能帮助回答 case 问题时，才拉取相关告警、评论、富化和 playbook；评论必须显式使用 `include_comments=True`。
 
 ## 补充信息
 
@@ -36,8 +36,8 @@ Case。
 
 ## 决策流程
 
-1. 如果用户提供了具体 case ID，或说要 open/show/review/summarize 某个 case，调用 `list_cases(case_id=<id>, limit=1, include_related=True)`。
-2. 如果用户要查找、浏览或对比 case，默认使用 `list_cases(..., include_related=False)`；只有需要 alerts、enrichments、comments、playbooks 时才设为 `True`。
+1. 如果用户提供了具体 case ID，或说要 open/show/review/summarize 某个 case，调用 `list_cases(case_id=<id>, limit=1, include_related=True, include_comments=True)`。
+2. 如果用户要查找、浏览或对比 case，默认使用 `list_cases(..., include_related=False, include_comments=False)`；只有需要 alerts、enrichments、playbooks 时才设 `include_related=True`，需要 comments 时才设 `include_comments=True`。
 3. 如果用户要更新 AI 分析字段或 summary，使用 `update_case`。
 4. 如果用户要添加自然语言评论，使用 `asp-comment-zh` skill。
 5. 如果用户给出了多个过滤条件，只应用 ASP 直接支持的部分，并明确说明不支持的过滤条件。
@@ -45,14 +45,16 @@ Case。
 
 ## MCP 工具契约
 
-- `list_cases(case_id=None, status=None, severity=None, confidence=None, verdict=None, correlation_uid=None, title=None, tags=None, include_related=True, limit=10)`
+- `list_cases(case_id=None, status=None, severity=None, confidence=None, verdict=None, correlation_uid=None, title=None, tags=None, include_related=True, limit=10, include_comments=False, comments_limit=20)`
   - `case_id` 是 `case_000001` 这类可读 ID。
   - `status`：`New`、`In Progress`、`On Hold`、`Resolved`、`Closed`。
   - `severity`：`Unknown`、`Informational`、`Low`、`Medium`、`High`、`Critical`。
   - `confidence`：`Unknown`、`Low`、`Medium`、`High`。
   - `verdict`：`Unknown`、`False Positive`、`True Positive`、`Disregard`、`Suspicious`、`Benign`、`Test`、`Insufficient Data`、`Security Risk`、`Managed Externally`、`Duplicate`、`Other`。
   - `tags` 可传字符串、逗号分隔字符串、JSON 数组字符串或数组；多个 tag 会全部参与过滤。
-  - `include_related=True` 会包含 alerts、enrichments、comments、playbooks；列表场景用 `False` 控制上下文。
+  - `include_related=True` 会包含 alerts、enrichments、playbooks；不会隐式包含 comments。
+  - `include_comments=True` 会包含最近的 comments；`comments_limit` 默认 20，最大 50。
+  - comment 附件只返回 `file_key`、文件名、大小、类型和下载地址；需要下载文件时使用 `asp-file-zh` / `get_file`。
   - `limit` 会被限制在 1-100。
 - `update_case(case_id, severity_ai=None, confidence_ai=None, impact_ai=None, priority_ai=None, verdict_ai=None, summary=None)`
   - 该工具只更新 AI 评估字段和 `summary`；不能更新分析师 `status`、分析师 `severity`、分析师 `verdict`、assignee 或工作流时间。
@@ -62,8 +64,8 @@ Case。
 
 ### 审查单个 Case
 
-1. 如果用户要求审查、分析或查看 case 详情，调用 `list_cases(case_id=<id>, limit=1, include_related=True)` 获取完整关联数据（alerts、enrichments、comments、playbooks）。
-2. 如果只需要快速查看 case 基本信息，调用 `list_cases(case_id=<id>, limit=1, include_related=False)` 即可。
+1. 如果用户要求审查、分析或查看 case 详情，调用 `list_cases(case_id=<id>, limit=1, include_related=True, include_comments=True)` 获取关联数据（alerts、enrichments、playbooks）和最近 comments。
+2. 如果只需要快速查看 case 基本信息，调用 `list_cases(case_id=<id>, limit=1, include_related=False, include_comments=False)` 即可。
 3. 如果结果为空，直接说明找不到该 case。
 4. 只展示与用户请求最相关的部分。
 5. 只有在确实影响用户目标时，才强调缺失字段或可疑字段。
@@ -73,7 +75,7 @@ Case。
 - `Case`：case ID、标题、严重级别、状态、verdict、confidence、impact、priority、correlation UID、tags。
 - `Timeline`：创建时间。
 - `Key Alerts`：只列最相关的告警，不默认列全。
-- `Comments`：仅在相关时给出关键分析或系统评论点。
+- `Comments`：仅在相关时给出关键分析或系统评论点；附件只列文件名和 `file_key`。
 - `Analyst / AI Notes`：在相关时给出 comment、summary 和 AI 字段。
 
 当用户问“发生了什么”或“帮我理解这个 case”时，先给一段简短分析性总结，再给结构化细节。

@@ -51,7 +51,7 @@ Use this skill when the user wants to create or modify an ASP playbook script. T
 1. Confirm playbook type:
    - LLM analysis: custom analysis logic, prompts, triage flow, and optional write-back based on LLM output.
    - SOAR automation: internal service or external API calls for enrichment, notification, ticketing, blocking, isolation, or similar actions.
-2. Confirm what Case data is needed: alerts, artifacts, comments, enrichments.
+2. Confirm what Case data is needed: alerts, artifacts, comments, comment attachments, enrichments.
 3. Confirm whether `user_input` should affect logic or prompts.
 4. Confirm where output should go: run `remark` only, enrichment/comment write-back, or an external system.
 5. For LLM analysis playbooks, confirm the prompt directory name. Store prompts under `custom/data/playbooks/<playbookname>/`.
@@ -279,6 +279,32 @@ Related data access:
 - Artifacts: `alert.artifacts.all()`
 - Case enrichments: `self.case.enrichments.all()`
 - Alert enrichments: `alert.enrichments.all()`
+- Comments: query target object comments with `ContentType` + `Comment`.
+- Comment attachments: use `comment.attachments.all()` and read file content with `attachment.file.open("rb")`.
+
+Comment attachment example:
+
+```python
+from django.contrib.contenttypes.models import ContentType
+
+from apps.comments.models import Comment
+
+
+content_type = ContentType.objects.get_for_model(self.case, for_concrete_model=False)
+comments = (
+    Comment.objects
+    .filter(content_type=content_type, object_id=str(self.case.pk))
+    .prefetch_related("attachments")
+)
+
+for comment in comments:
+    for attachment in comment.attachments.all():
+        with attachment.file.open("rb") as file_obj:
+            content = file_obj.read()
+        filename = attachment.filename
+```
+
+Attachments are not restricted by file type. When generating a Playbook, do not assume an attachment is text; choose parsing logic based on filename, size, and actual content.
 
 Write-back choices:
 - Enrichment: structured results, enrichment data, external-system responses.
@@ -296,7 +322,7 @@ Ask whether the user is writing:
 ### Step 2 — Confirm Inputs and Output
 
 Confirm:
-- What Case data is needed: alerts, artifacts, comments, enrichments.
+- What Case data is needed: alerts, artifacts, comments, comment attachments, enrichments.
 - Whether `user_input` should guide logic or prompts.
 - For LLM playbooks, the prompt directory name, such as `custom_triage`, and required prompt files.
 - Whether output should be only `remark`, or also enrichment/comment/external-system write-back.

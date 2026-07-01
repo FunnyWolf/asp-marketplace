@@ -5,7 +5,7 @@ argument-hint: 'list playbook definitions | run playbook <name> for <case_id> | 
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ playbook, automation, soar, investigation ]
@@ -35,7 +35,7 @@ metadata:
 ## 决策流程
 
 1. 如果用户想知道哪些 playbook 可以运行，调用 `list_playbook_templates`。
-2. 如果用户想确认某个 case 是否执行过自动化，调用 `list_playbooks(case_id=<case_id>, include_related=False)`。
+2. 如果用户想确认某个 case 是否执行过自动化，调用 `list_playbooks(case_id=<case_id>, include_related=False, include_comments=False)`。
 3. 如果用户要执行自动化，并已提供 definition 名称和目标 case，调用 `execute_playbook`。
 4. 如果用户想执行自动化但不知道 definition 名称，先调用 `list_playbook_templates`。
 5. 如果用户要看整体自动化历史，使用最窄有用过滤条件调用 `list_playbooks`。
@@ -49,11 +49,13 @@ metadata:
   - `case_id` 是 `case_000001` 这类可读 ID。
   - `user_input` 是可选的本次运行补充说明。
   - 调用后会创建 pending playbook run 记录。
-- `list_playbooks(playbook_id=None, job_status=None, case_id=None, include_related=False, limit=10)`
+- `list_playbooks(playbook_id=None, job_status=None, case_id=None, include_related=False, limit=10, include_comments=False, comments_limit=20)`
   - `playbook_id` 是 `playbook_000001` 这类 run ID。
   - `job_status`：`Success`、`Failed`、`Pending`、`Running`。
   - `case_id` 用于过滤某个 case 关联的 runs。
   - `include_related=False` 返回紧凑 run 记录。只有审查具体某条 run 且需要关联 case 简要信息时才设为 `True`。
+  - `include_comments=True` 会包含该 run 最近的 comments；`comments_limit` 默认 20，最大 50。
+  - comment 附件只返回元数据和下载地址；需要下载文件时使用 `asp-file-zh` / `get_file`。
   - `limit` 会被限制在 1-100。
 
 ## SOP
@@ -85,7 +87,7 @@ metadata:
 
 1. 提取支持的过滤字段：`playbook_id`、`job_status`、`case_id`、`limit`。
 2. 当用户是从某个 case 视角提问时，优先使用 `case_id`。
-3. 历史/列表视图使用 `include_related=False`；只有具体某条 run 需要关联 case 上下文时才用 `include_related=True`。
+3. 历史/列表视图使用 `include_related=False, include_comments=False`；只有具体某条 run 需要关联 case 上下文时才用 `include_related=True`，需要评论时才用 `include_comments=True`。
 4. 调用 `list_playbooks`。
 5. 解析返回的 JSON 字符串。
 6. 用简短的 run 视图呈现。

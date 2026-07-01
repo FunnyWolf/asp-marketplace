@@ -5,7 +5,7 @@ argument-hint: 'search knowledge <query> | update knowledge <knowledge_id> <fiel
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ knowledge, memory, investigation ]
@@ -40,14 +40,16 @@ Knowledge records are stored in the database with core fields: `title`, `body`, 
 
 ## Decision Flow
 
-1. If the user wants to search knowledge content, use `search_knowledge`.
+1. If the user wants to search knowledge content, use `search_knowledge`; add `include_comments=True` only when comment context is needed.
 2. If the user wants to modify a known record, call `update_knowledge`.
 
 ## MCP Tool Contract
 
-- `search_knowledge(keyword, limit=10)`
+- `search_knowledge(keyword, limit=10, include_comments=False, comments_limit=20)`
   - `keyword` may be a string, comma-separated string, JSON array string, or list. Multiple keywords are ORed across title, body, and tags.
   - `limit` is clamped to 1-100.
+  - `include_comments=True` includes recent comments. `comments_limit` defaults to 20 and is capped at 50.
+  - Comment attachments include metadata and download URLs only. Use `asp-file-en` / `get_file` to fetch file metadata again.
 - `update_knowledge(knowledge_id, title=None, body=None, expires_at=None, tags=None)`
   - `knowledge_id` is a readable ID such as `knowledge_000001`.
   - `body` supports Markdown. Preserve headings, lists, tables, code blocks, links, and other Markdown formatting when the user provides structured content.
@@ -59,7 +61,7 @@ Knowledge records are stored in the database with core fields: `title`, `body`, 
 ### Search Knowledge
 
 1. Convert the user's question, keywords, or scenario description into a search query.
-2. Call `search_knowledge`.
+2. Call `search_knowledge`; keep `include_comments=False` unless the user explicitly needs discussion history.
 3. Return the most relevant few results, prioritizing directly relevant knowledge titles and short explanations.
 4. Do not expand the full body unless the user explicitly asks for it.
 

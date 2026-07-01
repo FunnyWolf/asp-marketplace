@@ -51,7 +51,7 @@ metadata:
 1. 先确认 playbook 类型：
    - LLM 智能分析类：自定义分析逻辑、提示词、研判流程，可能根据输出继续分诊或写回。
    - SOAR 自动化处理类：调用内部服务或外部接口，完成富化、通知、工单、封禁、隔离等动作。
-2. 确认目标 Case 数据需求：是否需要 alerts、artifacts、comments、enrichments。
+2. 确认目标 Case 数据需求：是否需要 alerts、artifacts、comments、comment attachments、enrichments。
 3. 确认是否需要 `user_input` 影响逻辑或 prompt。
 4. 确认输出写到哪里：只写 run `remark`，还是额外创建 enrichment/comment，或调用外部系统。
 5. LLM 智能分析类还要确认提示词目录名，推荐放在 `custom/data/playbooks/<playbookname>/`。
@@ -139,7 +139,7 @@ class Playbook(BasePlaybook):
         case = self.case
         user_input = self.user_input
 
-        # 1. 收集上下文：按需读取 case、alerts、artifacts、comments、enrichments。
+        # 1. 收集上下文：按需读取 case、alerts、artifacts、comments、comment attachments、enrichments。
         alerts = list(case.alerts.prefetch_related("artifacts", "enrichments"))
         artifacts = []
         for alert in alerts:
@@ -277,6 +277,32 @@ class Playbook(BasePlaybook):
 - Artifacts：`alert.artifacts.all()`
 - Case enrichments：`self.case.enrichments.all()`
 - Alert enrichments：`alert.enrichments.all()`
+- Comments：用 `ContentType` + `Comment` 查询目标对象评论。
+- Comment attachments：通过 `comment.attachments.all()` 获取附件，使用 `attachment.file.open("rb")` 读取文件内容。
+
+读取评论附件示例：
+
+```python
+from django.contrib.contenttypes.models import ContentType
+
+from apps.comments.models import Comment
+
+
+content_type = ContentType.objects.get_for_model(self.case, for_concrete_model=False)
+comments = (
+    Comment.objects
+    .filter(content_type=content_type, object_id=str(self.case.pk))
+    .prefetch_related("attachments")
+)
+
+for comment in comments:
+    for attachment in comment.attachments.all():
+        with attachment.file.open("rb") as file_obj:
+            content = file_obj.read()
+        filename = attachment.filename
+```
+
+附件不限制文件类型。生成 Playbook 时，不要默认把附件当作文本；应根据文件名、大小和实际内容选择解析逻辑。
 
 写回方式简述：
 - Enrichment：适合结构化结果、富化数据、外部系统返回。
@@ -294,7 +320,7 @@ class Playbook(BasePlaybook):
 ### Step 2 — 确认输入与目标
 
 确认：
-- 目标 case 数据需要哪些部分：alerts、artifacts、comments、enrichments。
+- 目标 case 数据需要哪些部分：alerts、artifacts、comments、comment attachments、enrichments。
 - 是否需要用户通过 `user_input` 提供额外指导。
 - LLM 智能分析类的提示词目录名，例如 `custom_triage`，以及需要哪些 prompt 文件。
 - 输出只写 `remark`，还是还要写 enrichment/comment 或调用外部系统。

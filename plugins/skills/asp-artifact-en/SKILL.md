@@ -5,7 +5,7 @@ argument-hint: 'review artifact <artifact_id> | list artifacts [filters]'
 compatibility: connect to asp mcp server
 metadata:
   author: Funnywolf
-  version: 0.1.0
+  version: 0.1.1
   mcp-server: asp
   category: cyber security
   tags: [ artifact, pivot, enrichment, investigation ]
@@ -33,20 +33,22 @@ Artifacts are created automatically by system processes. You can list and analyz
 
 ## Decision Flow
 
-1. If the user wants to find or review one specific artifact, call `list_artifacts(artifact_id=<id>, limit=1, include_related=True)`.
-2. If the user wants to browse or compare artifacts, call `list_artifacts(..., include_related=False)`.
+1. If the user wants to find or review one specific artifact, call `list_artifacts(artifact_id=<id>, limit=1, include_related=True, include_comments=True)`.
+2. If the user wants to browse or compare artifacts, call `list_artifacts(..., include_related=False, include_comments=False)`.
 3. If the user wants to attach intelligence, analysis notes, or structured analysis to an artifact, use the `asp-enrichment-en` skill.
 4. If the user is investigating from an artifact, treat the artifact as the smallest pivot object and suggest the next most useful hop only when needed.
 
 ## MCP Tool Contract
 
-- `list_artifacts(artifact_id=None, type=None, role=None, value=None, include_related=False, limit=10)`
+- `list_artifacts(artifact_id=None, type=None, role=None, value=None, include_related=False, limit=10, include_comments=False, comments_limit=20)`
   - `artifact_id` is a readable ID such as `artifact_000001`.
   - `type` accepts ASP artifact type values such as `IP Address`, `Hostname`, `User Name`, `Email Address`, `URL String`, `Hash`, `File Name`, `Process Name`, `Resource UID`, `Port`, `Subnet`, `Command Line`, `CVE`, `Account`, `Resource`, `File Path`, `Device`, `Registry Path`, `Other`, and related platform values.
   - `role`: `Unknown`, `Target`, `Actor`, `Affected`, `Related`, `Other`.
   - `value` is an exact artifact value match.
   - `type` and `role` may be strings, comma-separated strings, JSON array strings, or lists.
   - `include_related=False` returns compact artifact records. Set `include_related=True` only when reviewing a specific artifact and you need enrichments.
+  - `include_comments=True` includes recent comments. `comments_limit` defaults to 20 and is capped at 50.
+  - Comment attachments include metadata and download URLs only. Use `asp-file-en` / `get_file` to fetch file metadata again.
   - `limit` is clamped to 1-100.
   - There is no owner filter in the current MCP tool.
 
@@ -55,7 +57,7 @@ Artifacts are created automatically by system processes. You can list and analyz
 ### List Artifacts
 
 1. Extract the narrowest useful filters from the request.
-2. Use `include_related=False` for broad lookup/listing. Use `include_related=True` only for one specific artifact that needs enrichment context.
+2. Use `include_related=False, include_comments=False` for broad lookup/listing. Use `include_related=True` only for one specific artifact that needs enrichment context, and `include_comments=True` only when comments are needed.
 3. Call `list_artifacts`.
 4. Parse the returned JSON strings.
 5. Present a compact artifact view. If the user will likely attach or reuse the artifact next, surface the `artifact_id` explicitly.
