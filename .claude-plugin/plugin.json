@@ -1,0 +1,24 @@
+{
+  "name": "asp-skills",
+  "skills": [
+    "./skills/setup/asp-setup",
+    "./skills/records/asp-case",
+    "./skills/records/asp-alert",
+    "./skills/records/asp-artifact",
+    "./skills/records/asp-comment",
+    "./skills/records/asp-file",
+    "./skills/records/asp-knowledge",
+    "./skills/records/asp-enrichment",
+    "./skills/records/asp-playbook",
+    "./skills/integrations/asp-siem-search",
+    "./skills/integrations/asp-siem-index-yaml",
+    "./skills/integrations/asp-siem-rule",
+    "./skills/integrations/asp-cmdb",
+    "./skills/integrations/asp-threat-intelligence",
+    "./skills/authoring/asp-module-creator",
+    "./skills/authoring/asp-playbook-creator",
+    "./skills/investigation/asp-case-investigation",
+    "./skills/investigation/asp-artifact-investigation",
+    "./skills/investigation/asp-threat-hunting"
+  ]
+}

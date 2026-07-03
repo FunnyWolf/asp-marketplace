@@ -1,77 +1,67 @@
-# ASP Marketplace
+# ASP Skills
 
-Agentic SOC Platform (ASP) Claude Code plugin marketplace.
+Reusable Agentic SOC Platform skills for coding agents that support the open agent skills ecosystem.
 
-## Overview
+The skills use the `asp` command line client as the runtime seam. Install and authenticate the CLI once, then let your agent call `asp ... --output json`.
 
-This marketplace provides Claude Code plugins for operating ASP through the current ASP MCP server. It bundles investigation agents and task-focused skills for common security operations workflows.
+## Quickstart
 
-The bundled MCP configuration targets the current ASP backend MCP server:
+Install the skill package:
 
-- Transport: Streamable HTTP
-- Endpoint: `${ASP_MCP_URL}` such as `https://asp.example.com/api/mcp`
-- Authentication: `Authorization: Api-Key ${ASP_MCP_API_KEY}`
-
-Create an ASP user API key in the platform and set both environment variables before using the plugin. The backend MCP endpoint is served by the ASGI application; in production, route `/api/mcp` to the Uvicorn process.
-
-## Bundled agents
-
-- `asp-case-investigator-en` / `asp-case-investigator-zh`
-- `asp-artifact-investigator-en` / `asp-artifact-investigator-zh`
-- `asp-threat-hunting-en` / `asp-threat-hunting-zh`
-
-## Bundled skills
-
-- `asp-alert-en` / `asp-alert-zh`
-- `asp-artifact-en` / `asp-artifact-zh`
-- `asp-case-en` / `asp-case-zh`
-- `asp-cmdb-en` / `asp-cmdb-zh`
-- `asp-comment-en` / `asp-comment-zh`
-- `asp-enrichment-en` / `asp-enrichment-zh`
-- `asp-file-en` / `asp-file-zh`
-- `asp-knowledge-en` / `asp-knowledge-zh`
-- `asp-module-creator-en` / `asp-module-creator-zh`
-- `asp-playbook-en` / `asp-playbook-zh`
-- `asp-playbook-creator-en` / `asp-playbook-creator-zh`
-- `asp-siem-index-yaml-en` / `asp-siem-index-yaml-zh`
-- `asp-siem-rule-en` / `asp-siem-rule-zh`
-- `asp-siem-search-en` / `asp-siem-search-zh`
-- `asp-threat-intelligence-en` / `asp-threat-intelligence-zh`
-
-## Structure
-
-```
-plugins/
-├── .mcp.json          # MCP server configuration
-├── agents/            # Claude Code agent definitions
-│   ├── asp-artifact-investigator-*.md
-│   ├── asp-case-investigator-*.md
-│   └── asp-threat-hunting-*.md
-└── skills/            # Claude Code skill definitions
-    ├── asp-alert-*
-    ├── asp-artifact-*
-    ├── asp-case-*
-    ├── asp-cmdb-*
-    ├── asp-comment-*
-    ├── asp-enrichment-*
-    ├── asp-file-*
-    ├── asp-knowledge-*
-    ├── asp-module-creator-*
-    ├── asp-playbook-*
-    ├── asp-playbook-creator-*
-    ├── asp-siem-index-yaml-*
-    ├── asp-siem-rule-*
-    ├── asp-siem-search-*
-    └── asp-threat-intelligence-*
+```bash
+npx skills@latest add FunnyWolf/asp-marketplace
 ```
 
-Each agent and skill is available in both English (`-en`) and Chinese (`-zh`) variants.
+Select the skills and agent targets in the installer. Install `asp-setup` first, then run it in your agent:
 
-## Documentation
+```text
+/asp-setup
+```
 
-- English: https://asp.viperrtp.com/asp/integrations/claude-code/
-- Chinese: https://asp.viperrtp.com/zh/asp/integrations/claude-code/
+`asp-setup` checks that `asp-cli` is installed, guides `asp auth login`, and verifies the connection with `asp doctor --output json`.
 
-## License
+## Skills
 
-See [LICENSE](LICENSE) for details.
+### Setup
+
+- `asp-setup`
+
+### Records
+
+- `asp-case`
+- `asp-alert`
+- `asp-artifact`
+- `asp-comment`
+- `asp-file`
+- `asp-knowledge`
+- `asp-enrichment`
+- `asp-playbook`
+
+### Integrations
+
+- `asp-siem-search`
+- `asp-siem-index-yaml`
+- `asp-siem-rule`
+- `asp-cmdb`
+- `asp-threat-intelligence`
+
+### Authoring
+
+- `asp-module-creator`
+- `asp-playbook-creator`
+
+### Investigation workflows
+
+- `asp-case-investigation`
+- `asp-artifact-investigation`
+- `asp-threat-hunting`
+
+The investigation workflow skills replace the previous Claude Code agent definitions. They are user-invoked orchestrator skills so they work across Claude Code, GitHub Copilot CLI, Codex, and other skill-aware agents.
+
+## Requirements
+
+- `asp-cli` installed, usually with `pipx install asp-cli`
+- ASP API URL and API key configured with `asp auth login`
+- A valid `asp doctor --output json` result before using operational skills
+
+Never store ASP API keys in skill files, repository files, or prompts.

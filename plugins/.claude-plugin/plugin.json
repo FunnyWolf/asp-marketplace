@@ -1,8 +1,0 @@
-{
-  "name": "asp-plugin",
-  "version": "0.3.0",
-  "description": "Agentic SOC Platform plugin for Claude Code using the current ASP MCP contract",
-  "author": {
-    "name": "Funnywolf"
-  }
-}
