@@ -1,6 +1,6 @@
 # ASP Skills
 
-Reusable Agentic SOC Platform skills for coding agents that support the open agent skills ecosystem.
+Reusable Agentic SOC Platform skills for coding agents that support the open skills ecosystem.
 
 The skills use the `asp` command line client as the runtime seam. Install and authenticate the CLI once, then let your agent call `asp ... --output json`.
 
